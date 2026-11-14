@@ -13,7 +13,7 @@ swift build -c release
 rm -rf Control.app
 mkdir -p Control.app/Contents/MacOS Control.app/Contents/Resources
 cp .build/release/Control Control.app/Contents/MacOS/Control
-cp Icon/AppIcon.icns Control.app/Contents/Resources/   # made by Icon/make-icon.swift
+cp Icon/AppIcon.icns Control.app/Contents/Resources/
 
 # LSUIElement: no Dock icon, only the menu bar item.
 cat > Control.app/Contents/Info.plist <<PLIST
@@ -33,4 +33,4 @@ cat > Control.app/Contents/Info.plist <<PLIST
 PLIST
 
 codesign --force --sign "${SIGN_IDENTITY:--}" Control.app
-echo "Built Control.app. Install: cp -R Control.app /Applications/"
+echo "Built Control.app. Install: make install"

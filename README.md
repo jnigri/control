@@ -36,10 +36,10 @@ Desk keys: 1–9 and every letter except F, H, J, K, L.
 Needs macOS 14+ and Xcode or the Command Line Tools.
 
 ```sh
-./bundle.sh
-cp -R Control.app /Applications/
-open /Applications/Control.app
+make install
 ```
+
+This builds Control.app, quits the running copy, copies the new one to `/Applications` and opens it.
 
 Allow the **Accessibility** permission when asked, then open Control again. It starts at login from then on.
 
@@ -47,7 +47,7 @@ Each rebuild needs the permission again, unless you sign with your own certifica
 (Keychain Access → Certificate Assistant → Create a Certificate…, name it `Control Signing`, type **Code Signing**):
 
 ```sh
-SIGN_IDENTITY="Control Signing" ./bundle.sh
+SIGN_IDENTITY="Control Signing" make install
 ```
 
 To quit: menu bar → Quit Control. Hidden windows come back on screen first.
