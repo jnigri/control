@@ -44,11 +44,12 @@ This builds Control.app, quits the running copy, copies the new one to `/Applica
 
 Allow the **Accessibility** permission when asked, then open Control again. It starts at login from then on.
 
-Each rebuild needs the permission again, unless you sign with your own certificate
-(Keychain Access → Certificate Assistant → Create a Certificate…, name it `Control Signing`, type **Code Signing**):
+Each rebuild needs the permission again, unless you make a signing certificate once
+(Keychain Access → Certificate Assistant → Create a Certificate…, name it `Control Signing`, type **Code Signing**).
+The build uses it when it finds it. To use a certificate with another name:
 
 ```sh
-SIGN_IDENTITY="Control Signing" make install
+SIGN_IDENTITY="Your Certificate Name" make install
 ```
 
 To quit: menu bar → Quit Control. Hidden windows come back on screen first.

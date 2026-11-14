@@ -1,10 +1,11 @@
 #!/bin/sh
 # Build Control.app, so Control can have its own Accessibility permission and start at login.
 #
-# macOS ties the permission to the app's signature. The default "-" signature changes on
+# macOS ties the permission to the app's signature. An ad-hoc "-" signature changes on
 # every build, so you would have to allow the permission again after each rebuild.
-# To avoid that, make a code-signing certificate once in Keychain Access
-# (Certificate Assistant > Create a Certificate..., type "Code Signing") and run:
+# To avoid that, this signs with a code-signing certificate named "Control Signing" when the
+# keychain has one (Keychain Access > Certificate Assistant > Create a Certificate...,
+# type "Code Signing"). Use another certificate with:
 #   SIGN_IDENTITY="Your Certificate Name" ./bundle.sh
 set -e
 
@@ -32,5 +33,10 @@ cat > Control.app/Contents/Info.plist <<PLIST
 </plist>
 PLIST
 
-codesign --force --sign "${SIGN_IDENTITY:--}" Control.app
+IDENTITY="${SIGN_IDENTITY:-Control Signing}"
+if ! security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
+    echo "warning: signing identity '$IDENTITY' not found, signing ad-hoc (permission resets on each build)" >&2
+    IDENTITY=-
+fi
+codesign --force --sign "$IDENTITY" Control.app
 echo "Built Control.app. Install: make install"
