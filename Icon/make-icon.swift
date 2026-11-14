@@ -1,5 +1,6 @@
 // Turns the logo artwork, Icon/source.png, into:
 //   Icon/AppIcon.icns  the app icon, in every size macOS wants
+//   Icon/logo.png      the artwork alone, cropped, for the README
 // Run from the project folder:  swift Icon/make-icon.swift
 import AppKit
 
@@ -59,4 +60,13 @@ pack.arguments = ["-c", "icns", folder, "-o", "Icon/AppIcon.icns"]
 try! pack.run()
 pack.waitUntilExit()
 try? FileManager.default.removeItem(atPath: folder)
-print("Wrote Icon/AppIcon.icns")
+
+// 3. README logo: the cropped artwork at its own ratio, 640 pixels wide.
+let logoWidth = 640
+let logoHeight = logoWidth * art.height / art.width
+let logo = canvas(logoWidth, logoHeight)
+logo.interpolationQuality = .high
+logo.draw(art, in: CGRect(x: 0, y: 0, width: logoWidth, height: logoHeight))
+save(logo.makeImage()!, "Icon/logo.png")
+
+print("Wrote Icon/AppIcon.icns and Icon/logo.png")
