@@ -49,5 +49,8 @@ if Bundle.main.bundleIdentifier != nil {
     try? SMAppService.mainApp.register()
 }
 
+// Put windows back on the desks they had at the last run.
+loadSavedDesks()
+
 refresh()
 app.run()

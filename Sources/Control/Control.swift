@@ -53,11 +53,11 @@ func refresh() {
     arrange()
 }
 
-/// A new window joins the desk of the monitor it appeared on.
+/// A new window joins the desk it had before Control started, or else the desk of the monitor it appeared on.
 func adopt(_ window: Window) {
     let rect = frame(of: window)
     let center = CGPoint(x: rect.midX, y: rect.midY)
-    let desk = visibleDesks().first { $0.area.contains(center) }?.desk ?? desks[current]!
+    let desk = savedDesk(for: window) ?? visibleDesks().first { $0.area.contains(center) }?.desk ?? desks[current]!
     if shouldFloat(window) {
         desk.floating.append(window)
     } else {
@@ -81,6 +81,7 @@ func arrange() {
         for window in desk.windows where hidden[window] == nil { hide(window) }
     }
     menuBar.update()
+    saveDesks()
 }
 
 /// Park a window in a corner of the main monitor, with only 1 point left on screen.

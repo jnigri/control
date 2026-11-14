@@ -6,7 +6,7 @@
 
 <p align="center">
   A small tiling window manager for macOS.<br>
-  No config file, no macOS Spaces, no System Integrity Protection changes. Under 800 lines of Swift you can read.
+  No config file, no macOS Spaces, no System Integrity Protection changes. Under 900 lines of Swift you can read.
 </p>
 
 ---
@@ -14,6 +14,7 @@
 - Windows **tile on their own**: a new window splits the focused one, a closed one gives its space back.
 - Every window lives on a **desk**. The main monitor shows one desk at a time; each extra monitor is one more desk.
 - Dialogs and fixed-size windows **float**.
+- Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window.
 - The menu bar shows the current desk. Click it to see every desk and its apps.
 
 ## Keys
