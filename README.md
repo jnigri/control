@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Icon/logo.png" width="220" alt="Control logo: a teal isometric cube on a worn cream-edged tile">
+  <img src="Icon/logo.png" width="300" alt="Control logo: a teal isometric cube on a worn cream-edged tile">
 </p>
 
 <h1 align="center">Control</h1>
