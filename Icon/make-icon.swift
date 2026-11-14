@@ -1,6 +1,6 @@
-// Turns the logo artwork, Icon/source.png, into:
-//   Icon/AppIcon.icns  the app icon, in every size macOS wants
-//   Icon/logo.png      the artwork alone, cropped, for the README
+// Turns the logo artwork into:
+//   Icon/AppIcon.icns  the app icon, in every size macOS wants, from Icon/source.png
+//   Icon/logo.png      the README logo, cropped, from Icon/logo-source.png
 // Run from the project folder:  swift Icon/make-icon.swift
 import AppKit
 
@@ -26,24 +26,29 @@ func place(_ art: CGImage, fit: CGFloat, size: Int) -> CGImage {
     return context.makeImage()!
 }
 
-let source = NSImage(contentsOfFile: "Icon/source.png")!.cgImage(forProposedRect: nil, context: nil, hints: nil)!
-let width = source.width
-let height = source.height
+/// Load an image and crop it to the artwork: the rows and columns with more than 50 solid pixels.
+/// Specks of dust around it are too small to count, so cropping drops them.
+/// `margin` keeps that many extra pixels on each side, for artwork with a soft, faded edge.
+func artwork(_ path: String, margin: Int = 0) -> CGImage {
+    let source = NSImage(contentsOfFile: path)!.cgImage(forProposedRect: nil, context: nil, hints: nil)!
+    let width = source.width
+    let height = source.height
+    let reader = canvas(width, height)
+    reader.draw(source, in: CGRect(x: 0, y: 0, width: width, height: height))
+    let pixels = reader.data!.bindMemory(to: UInt8.self, capacity: width * height * 4)
+    func solid(_ x: Int, _ y: Int) -> Bool { pixels[(y * width + x) * 4 + 3] > 128 }   // byte 3 is alpha
 
-// 1. Find the artwork: the rows and columns with more than 50 solid pixels.
-//    Specks of dust around it are too small to count, so cropping drops them.
-let reader = canvas(width, height)
-reader.draw(source, in: CGRect(x: 0, y: 0, width: width, height: height))
-let pixels = reader.data!.bindMemory(to: UInt8.self, capacity: width * height * 4)
-func solid(_ x: Int, _ y: Int) -> Bool { pixels[(y * width + x) * 4 + 3] > 128 }   // byte 3 is alpha
+    let rows = (0..<height).filter { y in (0..<width).count { solid($0, y) } > 50 }
+    let columns = (0..<width).filter { x in (0..<height).count { solid(x, $0) } > 50 }
+    let found = CGRect(x: columns.first!, y: rows.first!,
+                       width: columns.last! - columns.first! + 1, height: rows.last! - rows.first! + 1)
+    let crop = found.insetBy(dx: CGFloat(-margin), dy: CGFloat(-margin))
+        .intersection(CGRect(x: 0, y: 0, width: width, height: height))
+    return source.cropping(to: crop)!
+}
 
-let rows = (0..<height).filter { y in (0..<width).count { solid($0, y) } > 50 }
-let columns = (0..<width).filter { x in (0..<height).count { solid(x, $0) } > 50 }
-let art = source.cropping(to: CGRect(x: columns.first!, y: rows.first!,
-                                     width: columns.last! - columns.first! + 1,
-                                     height: rows.last! - rows.first! + 1))!
-
-// 2. App icon. On macOS's 1024 grid the tile fills the middle 824×824, leaving room for the shadow.
+// 1. App icon. On macOS's 1024 grid the tile fills the middle 824×824, leaving room for the shadow.
+let art = artwork("Icon/source.png")
 let folder = "Icon/AppIcon.iconset"
 try? FileManager.default.removeItem(atPath: folder)
 try! FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
@@ -61,12 +66,13 @@ try! pack.run()
 pack.waitUntilExit()
 try? FileManager.default.removeItem(atPath: folder)
 
-// 3. README logo: the cropped artwork at its own ratio, 640 pixels wide.
+// 2. README logo: the cropped artwork at its own ratio, 640 pixels wide.
+let logoArt = artwork("Icon/logo-source.png", margin: 16)
 let logoWidth = 640
-let logoHeight = logoWidth * art.height / art.width
+let logoHeight = logoWidth * logoArt.height / logoArt.width
 let logo = canvas(logoWidth, logoHeight)
 logo.interpolationQuality = .high
-logo.draw(art, in: CGRect(x: 0, y: 0, width: logoWidth, height: logoHeight))
+logo.draw(logoArt, in: CGRect(x: 0, y: 0, width: logoWidth, height: logoHeight))
 save(logo.makeImage()!, "Icon/logo.png")
 
 print("Wrote Icon/AppIcon.icns and Icon/logo.png")
