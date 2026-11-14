@@ -1,6 +1,6 @@
 import AppKit
 
-// The menu bar item: the current desk key in a rounded square, in system colors.
+// The menu bar item: the current desk key, then a small map of each monitor, in system colors.
 // Click it for a panel listing the desks, in the Asimov colors. Click a desk to show it.
 
 /// A color with one value for light mode and one for dark mode. macOS picks the right one
@@ -39,9 +39,9 @@ final class MenuBar: NSObject {
         panel.level = .popUpMenu
     }
 
-    /// Show the current desk key. If the panel is open, redraw it too.
+    /// Show the current desk key and the monitor maps. If the panel is open, redraw it too.
     func update() {
-        item.button?.image = keyCap(current)
+        item.button?.image = minimaps()
         if panel.isVisible { render() }
     }
 
@@ -181,6 +181,76 @@ func keyCap(_ key: String, size: CGFloat = 17, fill: NSColor? = nil, ink: NSColo
     }
     image.isTemplate = fill == nil
     return image
+}
+
+/// The menu bar picture: one map per monitor, left to right like the monitors themselves,
+/// with the current desk key on top of the main monitor's map.
+/// A template image, so macOS colors it to match the menu bar.
+func minimaps() -> NSImage {
+    let height: CGFloat = 16
+    let space: CGFloat = 5
+    let shown = visibleDesks().sorted { $0.area.minX < $1.area.minX }
+    let widths = shown.map { height * $0.area.width / $0.area.height }
+    let width = widths.reduce(0, +) + space * CGFloat(shown.count - 1)
+
+    let image = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
+        var x: CGFloat = 0
+        for ((desk, area), mapWidth) in zip(shown, widths) {
+            let box = CGRect(x: x, y: 0, width: mapWidth, height: height)
+            drawMap(of: desk, area, in: box)
+            if desk === desks[current] { drawKey(current, centeredIn: box) }
+            x += mapWidth + space
+        }
+        return true
+    }
+    image.isTemplate = true
+    return image
+}
+
+/// The desk key over a map. First a halo around the letters is cleared, so no inner line touches them.
+/// The halo stays inside the map's outer border, which is never cut.
+func drawKey(_ key: String, centeredIn box: CGRect) {
+    let font = NSFont.systemFont(ofSize: 10.5, weight: .heavy)
+    let text = NSAttributedString(string: key, attributes: [.font: font, .foregroundColor: NSColor.black])
+    // Center the capitals, not the whole line box: the line box has room for descenders.
+    let origin = NSPoint(x: box.midX - text.size().width / 2, y: box.midY - font.ascender + font.capHeight / 2)
+    let halo = NSAttributedString(string: key, attributes: [.font: font, .strokeColor: NSColor.black, .strokeWidth: 35])
+    let context = NSGraphicsContext.current!.cgContext
+    context.saveGState()
+    context.clip(to: box.insetBy(dx: 2.2, dy: 2.2))
+    context.setBlendMode(.destinationOut)
+    halo.draw(at: origin)
+    context.restoreGState()
+    text.draw(at: origin)
+}
+
+/// A desk shrunk into `box`: an outline per tiled window, filled for the window that covers the desk.
+/// A desk with no windows is a faint outline of the monitor.
+func drawMap(of desk: Desk, _ area: CGRect, in box: CGRect) {
+    let line: CGFloat = 1.2
+    let tiles = desk.tiles(in: area)
+    guard !tiles.isEmpty else {
+        let shape = NSBezierPath(roundedRect: box.insetBy(dx: line / 2, dy: line / 2), xRadius: 2.5, yRadius: 2.5)
+        shape.lineWidth = line
+        NSColor.black.withAlphaComponent(0.35).setStroke()
+        shape.stroke()
+        return
+    }
+    let scale = box.width / area.width
+    for (window, rect) in tiles {
+        // From screen points to map points, with a small gap between neighbors.
+        let tile = CGRect(x: box.minX + (rect.minX - area.minX) * scale, y: box.minY + (rect.minY - area.minY) * scale,
+                          width: rect.width * scale, height: rect.height * scale).insetBy(dx: 0.5, dy: 0.5)
+        if window == desk.fullscreen {
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: tile, xRadius: 2, yRadius: 2).fill()
+        } else {
+            let shape = NSBezierPath(roundedRect: tile.insetBy(dx: line / 2, dy: line / 2), xRadius: 1.5, yRadius: 1.5)
+            shape.lineWidth = line
+            NSColor.black.setStroke()
+            shape.stroke()
+        }
+    }
 }
 
 /// One icon per app on the desk, in order.

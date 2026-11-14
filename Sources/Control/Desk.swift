@@ -64,6 +64,13 @@ final class Desk {
 
     /// Where each tiled window goes when this desk fills `area`.
     func layout(in area: CGRect) -> [Window: CGRect] {
+        var frames = tiles(in: area)
+        if let fullscreen { frames[fullscreen] = area }
+        return frames
+    }
+
+    /// Where each tiled window sits in the layout tree, as if none covered the whole desk.
+    func tiles(in area: CGRect) -> [Window: CGRect] {
         var frames: [Window: CGRect] = [:]
         func split(_ node: Node, _ rect: CGRect) {
             if let window = node.window {
@@ -77,7 +84,6 @@ final class Desk {
             split(node.second!, b)
         }
         if let root { split(root, area.insetBy(dx: gap / 2, dy: gap / 2)) }
-        if let fullscreen { frames[fullscreen] = area }
         return frames
     }
 }

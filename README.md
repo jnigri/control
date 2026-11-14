@@ -15,7 +15,7 @@
 - Every window lives on a **desk**. The main monitor shows one desk at a time; each extra monitor is one more desk.
 - Dialogs and fixed-size windows **float**.
 - Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window.
-- The menu bar shows the current desk. Click it to see every desk and its apps.
+- The menu bar shows the current desk and a small map of each monitor: one box per tiled window, filled for a full screen window. Click it to see every desk and its apps.
 
 ## Keys
 
