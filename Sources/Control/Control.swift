@@ -13,6 +13,9 @@ var monitorDesks: [CGDirectDisplayID: Desk] = [:]
 /// Windows moved out of sight, with the frame they had before.
 var hidden: [Window: CGRect] = [:]
 
+/// While the screen is locked, apps report no windows. Don't take that as every window closing.
+var locked = false
+
 var allDesks: [Desk] { Array(desks.values) + Array(monitorDesks.values) }
 
 func desk(of window: Window) -> Desk? { allDesks.first { $0.windows.contains(window) } }
@@ -28,6 +31,7 @@ func visibleDesks() -> [(desk: Desk, area: CGRect)] {
 /// Bring the model in line with the windows that exist, then put every window in place.
 /// Runs after every event and every key: simple, and it fixes itself if an event is missed.
 func refresh() {
+    guard !locked else { return }
     syncMonitors()
 
     // Remember which window has focus, so the next new window splits it.

@@ -15,6 +15,15 @@ func watchEvents() {
     }
     NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                            object: nil, queue: .main) { _ in refresh() }
+    // Pause while the screen is locked, and catch up on unlock.
+    let distributed = DistributedNotificationCenter.default()
+    distributed.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
+        locked = true
+    }
+    distributed.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { _ in
+        locked = false
+        refresh()
+    }
 }
 
 /// Windows opening, closing, minimizing or getting focus, inside each app.
