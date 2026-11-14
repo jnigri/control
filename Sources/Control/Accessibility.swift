@@ -70,7 +70,8 @@ func focus(_ window: Window) {
     // the other way round, the app comes forward with its old window.
     setAttribute(window, kAXMainAttribute, kCFBooleanTrue)
     AXUIElementPerformAction(window, kAXRaiseAction as CFString)
-    setAttribute(AXUIElementCreateApplication(pid(of: window)), kAXFrontmostAttribute, kCFBooleanTrue)
+    // Setting the app's Accessibility "frontmost" attribute reports success but does nothing on recent macOS.
+    NSRunningApplication(processIdentifier: pid(of: window))?.activate()
 }
 
 /// A monitor's usable area (no menu bar, no Dock), in Accessibility coordinates.
