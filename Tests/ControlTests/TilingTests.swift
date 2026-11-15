@@ -111,6 +111,72 @@ extension ControlTests {
         _ = b
     }
 
+    // Picking a window with Command + Tab, the Dock or Command + `.
+
+    @Test func pickingAWindowOnAHiddenDeskShowsThatDesk() {
+        let a = fake.opens(1)
+        show("2")
+        let b = fake.opens(2)
+        fake.focus(a)
+        refresh()
+        #expect(current == "1" && previous == "2")
+        #expect(fake.frames[a] == whole)
+        #expect(visibleArea(of: b, on: fake) <= 1)
+    }
+
+    @Test func anEmptyDeskLeavesNoWindowFocused() {
+        let a = fake.opens(1)
+        show("2")
+        #expect(fake.focused == nil)
+        refresh()
+        // A click on the app in the Dock: its window has the focus again.
+        fake.focus(a)
+        refresh()
+        #expect(current == "1")
+        #expect(fake.frames[a] == whole)
+    }
+
+    @Test func pickingAWindowCoveredByAnotherOnItsDeskShowsIt() {
+        let a = fake.opens(1), b = fake.opens(2)
+        toggleFullscreen()
+        show("2")
+        fake.focus(a)
+        refresh()
+        #expect(current == "1")
+        #expect(desks["1"]!.fullscreen == nil)
+        #expect(fake.frames[a] == leftHalf && fake.frames[b] == rightHalf)
+    }
+
+    /// When a window closes, macOS gives the focus to another one, maybe on a hidden desk.
+    /// That is not the user picking it: the desk on screen stays, and one of its windows gets the focus.
+    @Test func closingAWindowStaysOnTheDesk() {
+        show("2")
+        let b = fake.opens(2)
+        show("1")
+        let a = fake.opens(1)
+        show("2")
+        let c = fake.opens(3)
+        fake.closes(c)   // the focus falls on `a`, the last window opened before it
+        #expect(current == "2")
+        #expect(fake.focused == b)
+        #expect(visibleArea(of: a, on: fake) <= 1)
+        // A moment later, picking `a` does bring up its desk.
+        fake.now = fake.now.addingTimeInterval(closeTime)
+        fake.focus(a)
+        refresh()
+        #expect(current == "1")
+    }
+
+    @Test func closingTheLastWindowOfADeskLeavesNoWindowFocused() {
+        let a = fake.opens(1)
+        show("2")
+        let b = fake.opens(2)
+        fake.closes(b)
+        #expect(current == "2")
+        #expect(fake.focused == nil)
+        #expect(visibleArea(of: a, on: fake) <= 1)
+    }
+
     @Test func sendingAWindowToADeskFollowsIt() {
         let a = fake.opens(1), b = fake.opens(2)
         send(to: "5")
@@ -142,12 +208,12 @@ extension ControlTests {
         #expect(fake.frames == before)
     }
 
-    /// After a switch to an empty desk, the focus is still on a window that was just hidden.
-    /// Before, keys still acted on that window you could not see.
+    /// After a switch to an empty desk, macOS may leave the focus on a window that was just hidden.
+    /// Keys leave that window you cannot see alone.
     @Test func keysLeaveAHiddenWindowAlone() {
         let a = fake.opens(1)
         show("2")
-        #expect(fake.focused == a)
+        fake.focused = a
         toggleFullscreen()
         toggleFloating()
         send(to: "3")

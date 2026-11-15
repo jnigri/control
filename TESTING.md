@@ -20,6 +20,18 @@ and during the animation in and out it already, or still, says so.
 
 If the layout is lost, note which browser, and whether it was on the way in or the way out.
 
+## Picking a window on another desk
+
+The tests assume macOS tells Control when the focus moves, and that Control can take the focus
+itself when it shows an empty desk.
+
+- [ ] Put an app's only window on desk 1, show desk 2. Command + Tab to the app: desk 1 shows, with the window.
+- [ ] Same with a click on the app in the Dock.
+- [ ] Show an empty desk, then click the Dock icon of the app you were just in. Its desk shows.
+- [ ] With two windows of one app on desks 1 and 2, press Command + ` in one: the other's desk shows.
+- [ ] With windows of one app on desks 1 and 2, close the one on desk 2. Desk 2 stays.
+- [ ] Quit an app whose only window is on the desk you are on. That desk stays.
+
 ## Mouse
 
 The tests assume apps report moves and resizes of their windows while the mouse button is down.

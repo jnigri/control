@@ -25,6 +25,8 @@ protocol System: AnyObject {
     func windows() -> [Window]
     func focusedWindow() -> Window?
     func focus(_ window: Window)
+    /// Take the focus away from every window.
+    func unfocus()
     func frame(of window: Window) -> CGRect
     func setFrame(_ window: Window, _ rect: CGRect)
     func setPosition(_ window: Window, _ point: CGPoint)
@@ -105,6 +107,9 @@ final class Mac: System {
         // Setting the app's Accessibility "frontmost" attribute reports success but does nothing on recent macOS.
         NSRunningApplication(processIdentifier: pid(of: window))?.activate()
     }
+
+    /// Control itself comes to the front. It has no window, so none has the focus.
+    func unfocus() { NSRunningApplication.current.activate() }
 
     func frame(of window: Window) -> CGRect {
         var origin = CGPoint.zero

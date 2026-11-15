@@ -41,6 +41,7 @@ final class FakeMac: System {
     func windows() -> [Window] { open.filter { !unreported.contains($0) } }
     func focusedWindow() -> Window? { focused }
     func focus(_ window: Window) { focused = window }
+    func unfocus() { focused = nil }
     func frame(of window: Window) -> CGRect { frames[window] ?? .zero }
 
     func setPosition(_ window: Window, _ point: CGPoint) {
@@ -168,6 +169,8 @@ func restart(on fake: FakeMac) {
     locked = false
     asleep = false
     catchingUpUntil = .distantPast
+    lastFocus = nil
+    closedAt = .distantPast
     loadSavedDesks()
     refresh()
 }

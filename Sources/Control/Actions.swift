@@ -19,7 +19,9 @@ func show(_ key: String) {
     previous = current
     current = key
     arrange()
-    if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) }
+    // On an empty desk, no window keeps the focus: the hidden one would swallow a click on its
+    // app in the Dock. Picking any app then brings up its desk.
+    if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) } else { mac.unfocus() }
 }
 
 /// Option + Shift + desk key: send the focused window to a desk, and follow it.
@@ -37,16 +39,23 @@ func send(to key: String) {
 /// Focus a window wherever it is. If its desk is not on screen, that desk comes on screen first.
 /// Another window covering the desk stops covering it, so the window shows.
 func reveal(_ window: Window) {
-    if let desk = desk(of: window) {
-        if desk.leaf(of: window) != nil && desk.fullscreen != window { desk.fullscreen = nil }
-        desk.lastFocused = window
-        if let key = deskKeys.first(where: { desks[$0] === desk }), key != current {
-            previous = current
-            current = key
-        }
+    if desk(of: window) != nil {
+        bringUp(window)
         arrange()
     }
     mac.focus(window)
+}
+
+/// Make a window's desk the one on screen, and the window the one that shows there.
+/// The windows move on the next `arrange()`.
+func bringUp(_ window: Window) {
+    guard let desk = desk(of: window) else { return }
+    if desk.leaf(of: window) != nil && desk.fullscreen != window { desk.fullscreen = nil }
+    desk.lastFocused = window
+    if let key = deskKeys.first(where: { desks[$0] === desk }), key != current {
+        previous = current
+        current = key
+    }
 }
 
 /// Take a window off its desk and put it on another. Tiled stays tiled, floating stays floating.

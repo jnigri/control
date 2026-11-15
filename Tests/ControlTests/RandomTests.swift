@@ -35,6 +35,13 @@ extension ControlTests {
                 // Click a window you can see.
                 if let window = visible.flatMap(\.desk.windows).randomElement(using: &random) { fake.focus(window) }
                 refresh()
+                // Or pick any window, with Command + Tab, a while after the last one closed: its desk shows.
+                if chance(50), let window = allDesks.flatMap(\.windows).randomElement(using: &random), !isCovered(desk(of: window)!) {
+                    fake.now = fake.now.addingTimeInterval(closeTime)
+                    fake.focus(window)
+                    refresh()
+                    #expect(visibleDesks().contains { $0.desk === desk(of: window) }, "seed \(seed), step \(step)")
+                }
             case 6, 7: show(keys.randomElement(using: &random)!)
             case 8: send(to: keys.randomElement(using: &random)!)
             case 9: show(previous)

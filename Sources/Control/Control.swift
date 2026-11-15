@@ -40,6 +40,14 @@ var paused: Bool { locked || asleep }
 var catchingUpUntil = Date.distantPast
 let catchUpTime: TimeInterval = 10
 
+/// The window that had focus at the last refresh. When it changes, someone picked another window.
+var lastFocus: Window?
+
+/// When a window last closed or was minimized. macOS then gives the focus to another window on
+/// its own, maybe one on a desk out of sight. For this long after, that is not the user picking it.
+var closedAt = Date.distantPast
+let closeTime: TimeInterval = 1
+
 /// The Mac woke up or the screen unlocked: catch up with what happened meanwhile.
 func resume() {
     catchingUpUntil = mac.now.addingTimeInterval(catchUpTime)
@@ -87,15 +95,34 @@ func refresh() {
     for desk in allDesks where !isCovered(desk) && !catchingUp {
         for window in desk.windows where !live.contains(window) && (covered.isEmpty || hidden[window] == nil) {
             desk.remove(window)
+            closedAt = mac.now
         }
     }
     hidden = hidden.filter { desk(of: $0.key) != nil }
     placed = placed.filter { desk(of: $0.key) != nil }
 
     // New windows join a desk. A window born full screen (a video) waits until it is a normal window.
-    for window in live where desk(of: window) == nil && !mac.isFullScreen(window) { adopt(window) }
+    let new = live.filter { desk(of: $0) == nil && !mac.isFullScreen($0) }
+    for window in new { adopt(window) }
 
+    // A new window has the focus because it just opened, maybe on its saved desk: not a pick.
+    if !catchingUp, mac.focusedWindow().map(new.contains) != true { followFocus() }
+    lastFocus = mac.focusedWindow()
     arrange()
+}
+
+/// The user picked a window on a desk out of sight, with Command + Tab, the Dock or Command + `:
+/// that desk comes on screen. Right after a window closes, macOS picks one on its own: then the
+/// focus goes back to the desk on screen instead.
+func followFocus() {
+    guard let window = mac.focusedWindow(), window != lastFocus, let desk = desk(of: window),
+          !visibleDesks().contains(where: { $0.desk === desk }) else { return }
+    if mac.now.timeIntervalSince(closedAt) < closeTime {
+        let here = desks[current]!
+        if let other = here.lastFocused ?? here.windows.first { mac.focus(other) } else { mac.unfocus() }
+    } else {
+        bringUp(window)
+    }
 }
 
 /// The monitors showing a window in macOS's own full screen mode. That window sits on a Space

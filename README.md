@@ -13,6 +13,7 @@
 
 - Windows **tile on their own**: a new window splits the focused one, a closed one gives its space back.
 - Every window lives on a **desk**. The main monitor shows one desk at a time; each extra monitor is one more desk.
+- Pick a window on another desk, with Command + Tab, the Dock or Command + `, and **its desk comes on screen**.
 - Dialogs and fixed-size windows **float**.
 - The **mouse** works too: drag an edge and the neighbors follow, drop a window on another to trade places, drop it on another monitor to move it there.
 - An unplugged monitor lends its windows to the main one, and **gets them back**, in the same layout, when it returns.
