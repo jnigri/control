@@ -51,8 +51,9 @@ extension ControlTests {
     }
 
     @Test func windowsOpenedLongAfterTheStartStayOnTheCurrentDesk() {
-        fake.opens(1, app: "editor")
+        let editor = fake.opens(1, app: "editor")
         send(to: "E")
+        fake.closes(editor)
         show("1")
         restart(on: fake)
         fake.now += 29
@@ -61,6 +62,19 @@ extension ControlTests {
         let late = fake.opens(3, app: "editor")
         #expect(desks["E"]!.tiled.contains(early))
         #expect(desks["1"]!.tiled == [late])
+    }
+
+    /// Right after a restart of Control, a new window of an app that is already open is one you
+    /// just made: it opens on the desk you are on, not on the desk of the app's other windows.
+    @Test func aNewWindowOfAnAppAlreadyOpenStaysOnTheCurrentDesk() {
+        let old = fake.opens(1, app: "browser")
+        send(to: "B")
+        show("1")
+        restart(on: fake)
+        fake.now += 5
+        let new = fake.opens(2, app: "browser")
+        #expect(desks["B"]!.tiled == [old])
+        #expect(desks["1"]!.tiled == [new])
     }
 
     @Test func anAppThatIsNotRunningKeepsItsDeskForNextTime() {

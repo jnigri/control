@@ -13,6 +13,8 @@ private var started = Date()
 private var oldWindows: [String: String] = [:]   // window number → desk name, from the last run
 private var oldApps: [String: String] = [:]      // bundle identifier → desk name, from the last run
 private var apps: [String: String] = [:]         // kept for apps that are not running now
+private var startWindows: Set<Window> = []       // the windows open when Control started
+private var startApps: Set<String> = []          // the apps those windows belong to
 
 /// Read what the last run saved. Call once, before the first refresh.
 func loadSavedDesks() {
@@ -22,12 +24,20 @@ func loadSavedDesks() {
     oldWindows = sameBoot ? mac.saved("windows") as? [String: String] ?? [:] : [:]
     oldApps = mac.saved("apps") as? [String: String] ?? [:]
     apps = oldApps
+    startWindows = Set(mac.windows())
+    startApps = Set(startWindows.compactMap(mac.app(of:)))
 }
 
 /// The desk a window had before Control started, if it is one of the first windows seen.
+/// The app's desk is only a guess for windows coming back: those open at the start, or from an
+/// app that had none then (it reopens at login). A new window of an app already open is one
+/// you just made, so it stays on the desk you are on.
 func savedDesk(for window: Window) -> Desk? {
     guard mac.now.timeIntervalSince(started) < restoreTime else { return nil }
-    let name = mac.number(of: window).flatMap { oldWindows[String($0)] } ?? mac.app(of: window).flatMap { oldApps[$0] }
+    var name = mac.number(of: window).flatMap { oldWindows[String($0)] }
+    if name == nil, let app = mac.app(of: window), startWindows.contains(window) || !startApps.contains(app) {
+        name = oldApps[app]
+    }
     return allDesks.first { $0.name == name }
 }
 
