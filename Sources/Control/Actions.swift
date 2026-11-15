@@ -183,7 +183,7 @@ func tile(at point: CGPoint) -> Window? {
 func dropped(_ window: Window, at pointer: CGPoint) {
     defer { refresh() }
     let shown = visibleDesks()
-    guard !locked, let desk = desk(of: window), !isCovered(desk),
+    guard !paused, let desk = desk(of: window), !isCovered(desk),
           let home = shown.first(where: { $0.desk === desk }) else { return }
     let now = mac.frame(of: window)
     // We move windows too, and the mouse button may be down for something else, like selecting text.

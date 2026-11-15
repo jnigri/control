@@ -263,4 +263,58 @@ extension ControlTests {
         refresh()
         #expect(fake.frames == before)
     }
+
+    /// Apps report no windows while the Mac sleeps, and for a moment after it wakes up.
+    /// Before, the windows were taken for closed, and all came back on the desk you were on.
+    @Test func sleepingKeepsEveryWindowOnItsDesk() {
+        let a = fake.opens(1), b = fake.opens(2)
+        let c = fake.opens(3)
+        send(to: "2")
+        let before = fake.frames
+        asleep = true
+        fake.unreported = [a, b, c]
+        refresh()
+        asleep = false
+        resume()
+        #expect(desks["1"]!.tiled == [a, b])
+        fake.unreported = [c]
+        refresh()
+        fake.unreported = []
+        refresh()
+        #expect(desks["1"]!.tiled == [a, b])
+        #expect(desks["2"]!.tiled == [c])
+        #expect(fake.frames == before)
+    }
+
+    /// A window that closes while apps catch up keeps its tile for a moment, then gives it up.
+    @Test func aWindowClosedAfterWakingUpLeavesItsDeskOnceAppsCaughtUp() {
+        let a = fake.opens(1), b = fake.opens(2)
+        locked = true
+        locked = false
+        resume()
+        fake.closes(b)
+        #expect(desks["1"]!.tiled == [a, b])
+        fake.now = fake.now.addingTimeInterval(catchUpTime)
+        refresh()
+        #expect(desks["1"]!.tiled == [a])
+        #expect(fake.frames[a] == whole)
+    }
+
+    /// Monitors come and go while the Mac sleeps, and macOS brings the parked windows back into view.
+    /// Before, they stayed in sight once the monitors were back as they were.
+    @Test func windowsBroughtBackIntoViewDuringSleepAreParkedAgain() {
+        let a = fake.opens(1)
+        send(to: "2")
+        show("1")
+        let b = fake.opens(2)
+        let parked = fake.frames[a]!
+        asleep = true
+        fake.plugs([monitor(1, x: 3000)])
+        fake.plugs([mainMonitor])
+        #expect(fake.frames[a] != parked)
+        asleep = false
+        resume()
+        #expect(fake.frames[a] == parked)
+        #expect(fake.frames[b] == whole)
+    }
 }

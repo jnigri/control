@@ -30,6 +30,25 @@ var covered: Set<CGDirectDisplayID> = []
 /// While the screen is locked, apps report no windows. Don't take that as every window closing.
 var locked = false
 
+/// The same while the Mac sleeps.
+var asleep = false
+
+var paused: Bool { locked || asleep }
+
+/// After the Mac wakes up or the screen unlocks, apps take a moment to report their windows again.
+/// Until then, a missing window has not closed: it keeps its place on its desk.
+var catchingUpUntil = Date.distantPast
+let catchUpTime: TimeInterval = 10
+
+/// The Mac woke up or the screen unlocked: catch up with what happened meanwhile.
+func resume() {
+    catchingUpUntil = mac.now.addingTimeInterval(catchUpTime)
+    // Monitors may have come and gone meanwhile, and macOS then brings parked windows back into
+    // view. They may be back to how they were, so park every hidden window again.
+    parkedOn = []
+    refresh()
+}
+
 var allDesks: [Desk] { Array(desks.values) + Array(monitorDesks.values) }
 
 func desk(of window: Window) -> Desk? { allDesks.first { $0.windows.contains(window) } }
@@ -51,7 +70,7 @@ func visibleDesks() -> [(desk: Desk, area: CGRect)] {
 /// Runs after every event and every key: simple, and it fixes itself if an event is missed.
 func refresh() {
     // With the lid closed and no monitor, there is nothing to arrange.
-    guard !locked, !mac.screens.isEmpty else { return }
+    guard !paused, !mac.screens.isEmpty else { return }
     syncMonitors()
 
     // Remember which window has focus, so the next new window splits it.
@@ -62,8 +81,10 @@ func refresh() {
 
     // Closed or minimized windows leave their desk. Their neighbor takes the space.
     // Not on a covered monitor: there, apps stop reporting windows that are still open.
-    // The same goes for hidden windows, which may be parked in a corner of any monitor.
-    for desk in allDesks where !isCovered(desk) {
+    // The same goes for hidden windows, which may be parked in a corner of any monitor,
+    // and for every window while apps catch up after a sleep or the lock screen.
+    let catchingUp = mac.now < catchingUpUntil
+    for desk in allDesks where !isCovered(desk) && !catchingUp {
         for window in desk.windows where !live.contains(window) && (covered.isEmpty || hidden[window] == nil) {
             desk.remove(window)
         }

@@ -166,6 +166,8 @@ func restart(on fake: FakeMac) {
     placed = [:]
     covered = []
     locked = false
+    asleep = false
+    catchingUpUntil = .distantPast
     loadSavedDesks()
     refresh()
 }

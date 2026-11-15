@@ -76,14 +76,22 @@ extension ControlTests {
                 refresh()
                 fake.leavesFullScreen(window, backTo: old)
             case 18:
-                // The screen locks: apps report nothing, events still come.
-                locked = true
+                // The screen locks or the Mac sleeps: apps report nothing, events still come, monitors
+                // may come and go. On waking up, apps take a moment to report their windows again.
+                chance(50) ? (locked = true) : (asleep = true)
                 let before = fake.frames
                 fake.unreported = Set(fake.open)
                 refresh()
                 show(keys.randomElement(using: &random)!)
-                fake.unreported = []
+                if chance(30) { fake.plugs(layouts.randomElement(using: &random)!) }
                 locked = false
+                asleep = false
+                resume()
+                fake.unreported = Set(fake.open.filter { _ in chance(50) })
+                refresh()
+                fake.unreported = []
+                refresh()
+                fake.now = fake.now.addingTimeInterval(catchUpTime)
                 refresh()
                 #expect(Set(fake.frames.keys) == Set(before.keys))
             case 19:

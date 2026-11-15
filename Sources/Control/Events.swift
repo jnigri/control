@@ -27,14 +27,23 @@ func watchEvents() {
     }
     NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                            object: nil, queue: .main) { _ in changed() }
-    // Pause while the screen is locked, and catch up on unlock.
+    // Pause while the Mac sleeps or the screen is locked, and catch up after.
+    for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification] {
+        workspace.addObserver(forName: name, object: nil, queue: .main) { _ in asleep = true }
+    }
+    for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification] {
+        workspace.addObserver(forName: name, object: nil, queue: .main) { _ in
+            asleep = false
+            catchUp()
+        }
+    }
     let distributed = DistributedNotificationCenter.default()
     distributed.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
         locked = true
     }
     distributed.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { _ in
         locked = false
-        refresh()
+        catchUp()
     }
     // The end of a mouse drag: see what the user did with the window.
     NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { _ in
@@ -44,6 +53,13 @@ func watchEvents() {
         let pointer = NSEvent.mouseLocation
         dropped(window, at: CGPoint(x: pointer.x, y: (NSScreen.screens.first?.frame.maxY ?? 0) - pointer.y))
     }
+}
+
+/// The Mac woke up or the screen unlocked. Once apps have had time to report their windows again,
+/// look once more: the windows still missing then really closed meanwhile.
+private func catchUp() {
+    resume()
+    DispatchQueue.main.asyncAfter(deadline: .now() + catchUpTime + 1) { changed() }
 }
 
 /// An app says something happened to one of its windows.

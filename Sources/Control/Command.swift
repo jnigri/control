@@ -91,7 +91,7 @@ extension Command {
     @discardableResult
     func run() throws -> String {
         // Apps report no windows while the screen is locked: moving them now would lose the layout.
-        if locked { throw CommandError("the screen is locked") }
+        if paused { throw CommandError("the screen is locked") }
         switch self {
         case .show(let key): Control.show(key)
         case .showPrevious: Control.show(previous)
