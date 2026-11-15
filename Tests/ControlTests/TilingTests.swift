@@ -214,6 +214,26 @@ extension ControlTests {
         #expect(fake.frames[b] == rightHalf)
     }
 
+    /// Before, the new window took its tile, and the fullscreen window stayed behind it, covering the rest.
+    @Test func aNewWindowEndsFullscreen() {
+        let a = fake.opens(1), b = fake.opens(2)
+        toggleFullscreen()
+        let c = fake.opens(3)
+        #expect(desks["1"]!.fullscreen == nil)
+        #expect(fake.frames == [a: leftHalf, b: topRight, c: bottomRight])
+    }
+
+    @Test func aWindowSentToAFullscreenDeskEndsFullscreen() {
+        let a = fake.opens(1)
+        send(to: "2")
+        toggleFullscreen()
+        show("1")
+        let b = fake.opens(2)
+        send(to: "2")
+        #expect(desks["2"]!.fullscreen == nil)
+        #expect(fake.frames == [a: leftHalf, b: rightHalf])
+    }
+
     @Test func floatingAWindowFreesItsTile() {
         let a = fake.opens(1), b = fake.opens(2)
         toggleFloating()

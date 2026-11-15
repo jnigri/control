@@ -42,7 +42,9 @@ final class Desk {
 
     /// Split the target window's space in two: old window first, new one second.
     /// Without a target, split the last window.
+    /// A window that covers the desk stops covering it, or it would hide behind the new one.
     func tile(_ window: Window, beside target: Window?) {
+        fullscreen = nil
         let new = Node(window)
         guard let root else { self.root = new; return }
         let old = target.flatMap(leaf(of:)) ?? root.leaves.last!
