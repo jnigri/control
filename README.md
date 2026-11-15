@@ -6,7 +6,7 @@
 
 <p align="center">
   A small tiling window manager for macOS.<br>
-  No config file, no macOS Spaces, no System Integrity Protection changes. About 1,200 lines of Swift you can read.
+  No config file, no macOS Spaces, no System Integrity Protection changes. About 1,600 lines of Swift you can read.
 </p>
 
 ---
@@ -19,6 +19,7 @@
 - A window in macOS's own full screen mode (a video, the green button) is **left alone**, and so is everything behind it.
 - Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window.
 - The menu bar shows the current desk and a small map of each monitor: one box per tiled window, filled for a full screen window. Click it to see every desk and its apps.
+- Scripts can do what the keys do, and more, with the **`control` command**: show a desk, or bring up a window wherever it is.
 
 ## Keys
 
@@ -35,6 +36,28 @@
 
 Desk keys: 1–9 and every letter except F, H, J, K, L.
 
+## Command line
+
+The keys and the `control` command give the same commands to the running app.
+
+```sh
+control ls                           # the desks in use and their windows
+control show 3                       # Option + 3
+control focus app Ghostty            # a window of an app: its desk comes on screen, then the window gets focus
+control focus title "~/code/my-app"   # the first window whose title contains this
+control focus window 4211            # a window by number, from `control ls`
+```
+
+`make install` links it into `~/.local/bin`. A notification that brings you back to the terminal that sent it,
+with [terminal-notifier](https://github.com/julienXX/terminal-notifier):
+
+```sh
+terminal-notifier -message "Build done" -execute "$HOME/.local/bin/control focus title '${PWD##*/}'"
+```
+
+Every command, the output formats, exit statuses and the socket other programs can talk to directly:
+[COMMANDS.md](COMMANDS.md).
+
 ## Install
 
 Needs macOS 14+ and Xcode or the Command Line Tools.
@@ -43,7 +66,8 @@ Needs macOS 14+ and Xcode or the Command Line Tools.
 make install
 ```
 
-This builds Control.app, quits the running copy, copies the new one to `/Applications` and opens it.
+This builds Control.app, quits the running copy, copies the new one to `/Applications`, links the
+`control` command into `~/.local/bin` and opens the app.
 
 Allow the **Accessibility** permission when asked, then open Control again. It starts at login from then on.
 
@@ -75,7 +99,7 @@ make test
 
 The tests run Control against a pretend Mac (`Tests/ControlTests/FakeMac.swift`): monitors and windows are
 plain values, so no real window moves and no permission is needed. They cover the layout, desks, keys,
-mouse drags, monitors coming and going, full screen videos, the lock screen and restarts, and they play
+mouse drags, monitors coming and going, full screen videos, the lock screen, restarts and the command line, and they play
 long random sessions to look for a state that breaks the rules.
 
 What only a real Mac can show is in [TESTING.md](TESTING.md): a short list to go through by hand.

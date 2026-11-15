@@ -87,6 +87,7 @@ func quitCleanly() {
     NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
                                            object: nil, queue: .main) { _ in
         for (window, old) in hidden { mac.setFrame(window, old) }
+        unlink(socketPath)
     }
     // Ctrl+C and `kill` send signals. Turn them into a normal quit.
     for signal in [SIGINT, SIGTERM] {

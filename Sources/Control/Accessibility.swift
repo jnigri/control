@@ -36,6 +36,9 @@ protocol System: AnyObject {
     func number(of window: Window) -> CGWindowID?
     /// The bundle identifier of the app that owns a window.
     func app(of window: Window) -> String?
+    /// The name of that app, as the Dock shows it.
+    func appName(of window: Window) -> String?
+    func title(of window: Window) -> String
 
     /// Small values kept between runs.
     func saved(_ key: String) -> Any?
@@ -138,6 +141,12 @@ final class Mac: System {
     func app(of window: Window) -> String? {
         NSRunningApplication(processIdentifier: pid(of: window))?.bundleIdentifier
     }
+
+    func appName(of window: Window) -> String? {
+        NSRunningApplication(processIdentifier: pid(of: window))?.localizedName
+    }
+
+    func title(of window: Window) -> String { attribute(window, kAXTitleAttribute) as? String ?? "" }
 
     func saved(_ key: String) -> Any? { UserDefaults.standard.object(forKey: key) }
     func save(_ value: Any, as key: String) { UserDefaults.standard.set(value, forKey: key) }

@@ -3,26 +3,26 @@ import Carbon
 // Global shortcuts, through the Carbon hot key API. It needs no extra permission,
 // and macOS swallows the key, so the focused app never sees it.
 
-private var actions: [UInt32: () -> Void] = [:]
+private var commands: [UInt32: Command] = [:]
 
-/// Run `action` when Option + key (or Option + Shift + key) is pressed.
-func bind(_ key: String, shift: Bool = false, _ action: @escaping () -> Void) {
-    let id = UInt32(actions.count + 1)
-    actions[id] = action
+/// Run `command` when Option + key (or Option + Shift + key) is pressed.
+func bind(_ key: String, shift: Bool = false, _ command: Command) {
+    let id = UInt32(commands.count + 1)
+    commands[id] = command
     let modifiers = optionKey | (shift ? shiftKey : 0)
     var ref: EventHotKeyRef?
     RegisterEventHotKey(UInt32(keyCodes[key]!), UInt32(modifiers), EventHotKeyID(signature: 0, id: id),
                         GetEventDispatcherTarget(), 0, &ref)
 }
 
-/// Install one handler for all shortcuts. It looks up the action by the shortcut's id.
+/// Install one handler for all shortcuts. It looks up the command by the shortcut's id.
 func listenForKeys() {
     var pressed = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
     InstallEventHandler(GetEventDispatcherTarget(), { _, event, _ in
         var id = EventHotKeyID()
         GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
                           nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
-        actions[id.id]?()
+        _ = try? commands[id.id]?.run()
         return noErr
     }, 1, &pressed, nil, nil)
 }

@@ -1,9 +1,9 @@
 import Foundation
 import CoreGraphics
 
-// What each key does, and what dragging a window with the mouse does.
+// What each command does (see `Command.swift`), and what dragging a window with the mouse does.
 
-enum Direction { case left, down, up, right }
+enum Direction: String { case left, down, up, right }
 
 /// The focused window and its desk, if Control manages it and the desk is on screen.
 /// After a switch to an empty desk, the focus is still on a window we just hid: keys leave it alone.
@@ -31,6 +31,21 @@ func send(to key: String) {
         current = key
     }
     arrange()
+    mac.focus(window)
+}
+
+/// Focus a window wherever it is. If its desk is not on screen, that desk comes on screen first.
+/// Another window covering the desk stops covering it, so the window shows.
+func reveal(_ window: Window) {
+    if let desk = desk(of: window) {
+        if desk.leaf(of: window) != nil && desk.fullscreen != window { desk.fullscreen = nil }
+        desk.lastFocused = window
+        if let key = deskKeys.first(where: { desks[$0] === desk }), key != current {
+            previous = current
+            current = key
+        }
+        arrange()
+    }
     mac.focus(window)
 }
 

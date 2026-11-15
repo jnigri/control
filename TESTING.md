@@ -51,6 +51,14 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 - [ ] Play a full screen video on one monitor. With "Displays have separate Spaces" on (System Settings, Desktop & Dock), the other monitor keeps tiling. With it off, macOS blanks the other monitor; after the video both layouts are the same.
 - [ ] Try the monitor on the left, on the right, and above or below (System Settings, Displays, Arrange). Each time, change desk and check that hidden windows stay hidden.
 
+## Command line
+
+- [ ] `control ls` lists the desks and their windows with titles, and `control windows` the same, tab-separated.
+- [ ] `control focus app <an app on another desk>`. That desk shows, and the window has the focus: typing goes to it.
+- [ ] `control focus window <number>` for a window on another monitor. The desk on the main monitor stays.
+- [ ] Run `sleep 5; control show 2` in a terminal and lock the screen right away. After unlocking, the terminal says the screen is locked, and nothing moved.
+- [ ] Quit Control, then run `control ls`. It says Control is not running.
+
 ## Restart
 
 - [ ] With windows on several desks, run `make install`. Every window is back on its desk.

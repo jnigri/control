@@ -1,6 +1,11 @@
 import AppKit
 import ServiceManagement
 
+// With words, like `control show 3`, this is the command line: it asks the running app. See Socket.swift.
+if CommandLine.arguments.count > 1 {
+    exit(commandLine(Array(CommandLine.arguments.dropFirst())))
+}
+
 // Ask for the Accessibility permission. The first time, macOS shows a prompt.
 guard AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary) else {
     print("Grant Accessibility permission in System Settings, then run again.")
@@ -16,19 +21,23 @@ let menuBar = MenuBar()
 
 // Keys. See the table in README.md.
 for key in deskKeys {
-    bind(key) { show(key) }
-    bind(key, shift: true) { send(to: key) }
+    bind(key, .show(key))
+    bind(key, shift: true, .send(key))
 }
-bind("Tab") { show(previous) }
+bind("Tab", .showPrevious)
 for (key, direction) in [("H", Direction.left), ("J", .down), ("K", .up), ("L", .right)] {
-    bind(key) { moveFocus(direction) }
-    bind(key, shift: true) { swap(direction) }
+    bind(key, .focus(direction))
+    bind(key, shift: true, .swap(direction))
 }
-bind("Minus") { resize(by: -resizeStep) }
-bind("Equal") { resize(by: resizeStep) }
-bind("F", shift: true) { toggleFullscreen() }
-bind("Space", shift: true) { toggleFloating() }
+bind("Minus", .shrink)
+bind("Equal", .grow)
+bind("F", shift: true, .fullscreen)
+bind("Space", shift: true, .float)
 listenForKeys()
+
+// The same commands, from the command line.
+let listener = Listener { words in try Command(words).run() }
+if listener == nil { print("Cannot listen on \(socketPath): the command line will not work.") }
 
 // Tile again whenever windows, apps or monitors change.
 watchEvents()

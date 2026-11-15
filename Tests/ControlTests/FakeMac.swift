@@ -32,6 +32,8 @@ final class FakeMac: System {
     var fullScreenOn: [Window: CGDirectDisplayID] = [:]
     var minimums: [Window: CGSize] = [:]  // apps that refuse to get smaller
     var bundles: [Window: String] = [:]
+    var names: [Window: String] = [:]
+    var titles: [Window: String] = [:]
     var store: [String: Any] = [:]
     var redraws = 0
     var writes = 0
@@ -57,6 +59,8 @@ final class FakeMac: System {
     func isFullScreen(_ window: Window) -> Bool { fullScreen.contains(window) }
     func number(of window: Window) -> CGWindowID? { CGWindowID(pid(of: window)) }
     func app(of window: Window) -> String? { bundles[window] }
+    func appName(of window: Window) -> String? { names[window] }
+    func title(of window: Window) -> String { titles[window] ?? "" }
     func saved(_ key: String) -> Any? { store[key] }
     func save(_ value: Any, as key: String) { store[key] = value; writes += 1 }
     func changed() { redraws += 1 }
