@@ -1,14 +1,6 @@
 import AppKit
 import ServiceManagement
 
-// MARK: Settings
-
-let gap: CGFloat = 8                // space around each tiled window, in points
-let resizeStep: CGFloat = 0.05      // how much Option + Minus / Equal moves a split
-let deskKeys = "123456789ABCDEGIMNOPQRSTUVWXYZ".map(String.init)  // every letter except F, H, J, K, L
-
-// MARK: Start
-
 // Ask for the Accessibility permission. The first time, macOS shows a prompt.
 guard AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary) else {
     print("Grant Accessibility permission in System Settings, then run again.")

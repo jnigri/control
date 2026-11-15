@@ -5,7 +5,8 @@ let package = Package(
     name: "Control",
     platforms: [.macOS(.v14)],
     targets: [
-        .executableTarget(name: "Control")
+        .executableTarget(name: "Control"),
+        .testTarget(name: "ControlTests", dependencies: ["Control"]),
     ],
     // Everything runs on the main thread, so Swift 6's thread-safety checks
     // would only add annotations everywhere. Swift 5 mode keeps the code plain.

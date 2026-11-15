@@ -1,12 +1,15 @@
-import AppKit
+import Foundation
+import CoreGraphics
 
-// What each key does.
+// What each key does, and what dragging a window with the mouse does.
 
 enum Direction { case left, down, up, right }
 
-/// The focused window and its desk, if Control manages it.
+/// The focused window and its desk, if Control manages it and the desk is on screen.
+/// After a switch to an empty desk, the focus is still on a window we just hid: keys leave it alone.
 func focusedOnDesk() -> (window: Window, desk: Desk)? {
-    guard let window = focusedWindow(), let desk = desk(of: window) else { return nil }
+    guard let window = mac.focusedWindow(), let desk = desk(of: window),
+          visibleDesks().contains(where: { $0.desk === desk }) else { return nil }
     return (window, desk)
 }
 
@@ -16,27 +19,66 @@ func show(_ key: String) {
     previous = current
     current = key
     arrange()
-    if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { focus(window) }
+    if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) }
 }
 
 /// Option + Shift + desk key: send the focused window to a desk, and follow it.
 func send(to key: String) {
-    guard let (window, from) = focusedOnDesk() else { return }
-    let to = desks[key]!
-    let wasFloating = from.floating.contains(window)
-    from.remove(window)
-    if wasFloating {
-        to.floating.append(window)
-    } else {
-        to.tile(window, beside: to.lastFocused)
-    }
-    to.lastFocused = window
+    guard let (window, from) = focusedOnDesk(), from !== desks[key]! else { return }
+    move(window, from: from, to: desks[key]!)
     if key != current {
         previous = current
         current = key
     }
     arrange()
-    focus(window)
+    mac.focus(window)
+}
+
+/// Take a window off its desk and put it on another. Tiled stays tiled, floating stays floating.
+func move(_ window: Window, from: Desk, to: Desk, beside target: Window? = nil) {
+    let wasFloating = from.floating.contains(window)
+    from.remove(window)
+    if wasFloating {
+        to.floating.append(window)
+    } else {
+        to.tile(window, beside: target ?? to.lastFocused)
+    }
+    to.lastFocused = window
+}
+
+/// Two tiled windows trade places, even across desks.
+func exchange(_ a: Window, _ b: Window) {
+    guard let deskA = desk(of: a), let deskB = desk(of: b),
+          let leafA = deskA.leaf(of: a), let leafB = deskB.leaf(of: b) else { return }
+    leafA.window = b
+    leafB.window = a
+    guard deskA !== deskB else { return }
+    // Each desk forgets the window that left.
+    for (desk, gone, came) in [(deskA, a, b), (deskB, b, a)] {
+        if desk.fullscreen == gone { desk.fullscreen = nil }
+        if desk.lastFocused == gone { desk.lastFocused = came }
+    }
+}
+
+/// Of some rectangles, the closest one in a direction. Straight ahead wins over off to the side.
+func closest<Key>(_ rects: [(key: Key, value: CGRect)], to from: CGRect, _ direction: Direction) -> Key? {
+    let ahead = rects.filter { _, rect in
+        switch direction {
+        case .left: rect.midX < from.minX
+        case .right: rect.midX > from.maxX
+        case .up: rect.midY < from.minY
+        case .down: rect.midY > from.maxY
+        }
+    }
+    func distance(_ rect: CGRect) -> CGFloat {
+        let dx = abs(rect.midX - from.midX)
+        let dy = abs(rect.midY - from.midY)
+        return direction == .left || direction == .right ? dx + 2 * dy : dy + 2 * dx
+    }
+    // Two just as close (one above the other, say): the upper one, then the left one. Always the same.
+    return ahead.min {
+        (distance($0.value), $0.value.minY, $0.value.minX) < (distance($1.value), $1.value.minY, $1.value.minX)
+    }?.key
 }
 
 /// The closest tiled window on screen in a direction. Crosses monitors, since all
@@ -45,40 +87,36 @@ func neighbor(of window: Window, _ direction: Direction) -> Window? {
     var frames: [Window: CGRect] = [:]
     for (desk, area) in visibleDesks() { frames.merge(desk.layout(in: area)) { first, _ in first } }
     guard let from = frames[window] else { return nil }
-
-    let candidates = frames.filter { _, rect in
-        switch direction {
-        case .left: rect.midX < from.minX
-        case .right: rect.midX > from.maxX
-        case .up: rect.midY < from.minY
-        case .down: rect.midY > from.maxY
-        }
-    }
-    // Prefer windows straight ahead over windows off to the side.
-    func distance(_ rect: CGRect) -> CGFloat {
-        let dx = abs(rect.midX - from.midX)
-        let dy = abs(rect.midY - from.midY)
-        return direction == .left || direction == .right ? dx + 2 * dy : dy + 2 * dx
-    }
-    return candidates.min { distance($0.value) < distance($1.value) }?.key
+    return closest(Array(frames), to: from, direction)
 }
 
 /// Option + H/J/K/L
 func moveFocus(_ direction: Direction) {
     guard let (window, _) = focusedOnDesk(), let other = neighbor(of: window, direction) else { return }
-    focus(other)
+    mac.focus(other)
 }
 
 /// Option + Shift + H/J/K/L: trade places with the neighbor, even on another monitor.
+/// With no neighbor that way but a monitor, the window moves to that monitor.
 func swap(_ direction: Direction) {
-    guard let (window, desk) = focusedOnDesk(),
-          let other = neighbor(of: window, direction),
-          let mine = desk.leaf(of: window),
-          let theirs = Control.desk(of: other)?.leaf(of: other) else { return }
-    mine.window = other
-    theirs.window = window
+    guard let (window, desk) = focusedOnDesk() else { return }
+    let shown = visibleDesks()
+    if desk.leaf(of: window) != nil, let other = neighbor(of: window, direction) {
+        exchange(window, other)
+    } else if let here = shown.first(where: { $0.desk === desk })?.area,
+              let there = closest(shown.map { (key: $0.area, value: $0.area) }, to: here, direction),
+              let beside = shown.first(where: { $0.area == there })?.desk {
+        // A floating window keeps its place relative to the monitor.
+        if desk.floating.contains(window) {
+            let frame = mac.frame(of: window).offsetBy(dx: there.minX - here.minX, dy: there.minY - here.minY)
+            mac.setFrame(window, inSight(frame, on: there))
+        }
+        move(window, from: desk, to: beside)
+    } else {
+        return
+    }
     arrange()
-    focus(window)
+    mac.focus(window)
 }
 
 /// Option + Minus / Equal: move the split next to the focused window.
@@ -87,7 +125,7 @@ func resize(by step: CGFloat) {
           let leaf = desk.leaf(of: window),
           let parent = leaf.parent else { return }
     let change = parent.first === leaf ? step : -step
-    parent.ratio = min(0.9, max(0.1, parent.ratio + change))
+    parent.ratio = min(ratioLimits.upperBound, max(ratioLimits.lowerBound, parent.ratio + change))
     arrange()
 }
 
@@ -96,7 +134,7 @@ func toggleFullscreen() {
     guard let (window, desk) = focusedOnDesk(), desk.leaf(of: window) != nil else { return }
     desk.fullscreen = desk.fullscreen == window ? nil : window
     arrange()
-    focus(window)
+    mac.focus(window)
 }
 
 /// Option + Shift + Space: float a tiled window in the middle of its monitor, or tile it again.
@@ -109,9 +147,45 @@ func toggleFloating() {
         desk.remove(window)
         desk.floating.append(window)
         if let area = visibleDesks().first(where: { $0.desk === desk })?.area {
-            setFrame(window, area.insetBy(dx: area.width / 6, dy: area.height / 6))
+            mac.setFrame(window, area.insetBy(dx: area.width / 6, dy: area.height / 6))
         }
     }
     arrange()
-    focus(window)
+    mac.focus(window)
+}
+
+/// The tiled window shown at a point. A window that covers its desk hides the others.
+func tile(at point: CGPoint) -> Window? {
+    guard let (desk, area) = visibleDesks().first(where: { $0.area.contains(point) }) else { return nil }
+    return desk.fullscreen ?? desk.tiles(in: area).first { $0.value.contains(point) }?.key
+}
+
+/// The user let go of a window after dragging or resizing it with the mouse.
+/// - An edge of a tiled window was dragged: the neighbors follow.
+/// - A tiled window was dropped on another one: they trade places. On another monitor, it splits that one.
+/// - Any window was dropped on another monitor: it now belongs to that monitor's desk.
+/// - Anything else: the window snaps back to its tile.
+func dropped(_ window: Window, at pointer: CGPoint) {
+    defer { refresh() }
+    let shown = visibleDesks()
+    guard !locked, let desk = desk(of: window), !isCovered(desk),
+          let home = shown.first(where: { $0.desk === desk }) else { return }
+    let now = mac.frame(of: window)
+    // We move windows too, and the mouse button may be down for something else, like selecting text.
+    // A real drag keeps the pointer on the window, and takes a tiled window off the frame we gave it.
+    guard now.insetBy(dx: -20, dy: -20).contains(pointer), placed[window] != now else { return }
+    let tiled = desk.leaf(of: window) != nil
+    // The pointer may be in the menu bar or the Dock of the monitor: look at whole monitors.
+    let screen = mac.screens.first { $0.frame.contains(pointer) }
+    let target = shown.first { $0.area == screen?.area }?.desk
+    let under = tile(at: pointer)
+
+    if tiled, desk.fullscreen != window, let before = placed[window],
+       abs(now.width - before.width) > 2 || abs(now.height - before.height) > 2 {
+        desk.resize(window, from: before, to: now, in: home.area)
+    } else if let target, target !== desk {
+        move(window, from: desk, to: target, beside: under)
+    } else if tiled, let under, under != window {
+        exchange(window, under)
+    }
 }
