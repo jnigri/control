@@ -99,14 +99,30 @@ extension ControlTests {
         #expect(monitorDesks[2]!.tiled == [a])
     }
 
-    /// The saved monitor is gone: the window just stays where it shows up.
-    @Test func aSavedMonitorThatIsGoneFallsBackToTheCurrentDesk() {
+    /// The saved monitor is gone: the window stays on that monitor's desk, a key away.
+    @Test func aWindowSavedOnAMonitorThatIsGoneStaysOnItsDesk() {
         fake.screens = [mainMonitor, rightMonitor]
         let x = fake.opens(1, on: rightMonitor)
         fake.screens = [mainMonitor]
         fake.frames[x] = rect(100, 100, 400, 300)
         restart(on: fake)
-        #expect(desks["1"]!.tiled == [x])
+        #expect(desks["0"]!.tiled == [x])
+        #expect(visibleArea(of: x, on: fake) == 1)
+        show("0")
+        #expect(fake.frames[x] == whole)
+    }
+
+    /// Before, which monitor got which desk depended on the order macOS listed them in.
+    @Test func eachMonitorKeepsItsDeskAfterARestart() {
+        let left = monitor(3, x: -1000)
+        fake.screens = [mainMonitor, rightMonitor]
+        refresh()
+        fake.screens = [mainMonitor, rightMonitor, left]
+        refresh()
+        fake.screens = [mainMonitor, left, rightMonitor]
+        restart(on: fake)
+        #expect(monitorDesks[2]!.name == "0")
+        #expect(monitorDesks[3]!.name == "9")
     }
 
     /// Control crashed while a dialog was parked out of sight. Its real place is lost,

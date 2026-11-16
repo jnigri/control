@@ -13,8 +13,15 @@ func focusedOnDesk() -> (window: Window, desk: Desk)? {
     return (window, desk)
 }
 
-/// Option + desk key: show that desk on the main monitor.
+/// Option + desk key: show that desk on the main monitor. The desk of an extra monitor is
+/// on screen already: the focus goes to it.
 func show(_ key: String) {
+    syncMonitors()
+    if onMonitor(desks[key]!) {
+        arrange()
+        if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) }
+        return
+    }
     guard key != current else { return }
     previous = current
     current = key
@@ -26,11 +33,17 @@ func show(_ key: String) {
 
 /// Option + Shift + desk key: send the focused window to a desk, and follow it.
 func send(to key: String) {
-    guard let (window, from) = focusedOnDesk(), from !== desks[key]! else { return }
-    move(window, from: from, to: desks[key]!)
-    if key != current {
+    syncMonitors()
+    let to = desks[key]!
+    guard let (window, from) = focusedOnDesk(), from !== to else { return }
+    move(window, from: from, to: to)
+    if key != current && !onMonitor(to) {
         previous = current
         current = key
+    }
+    // A floating window goes to the monitor of its new desk.
+    if to.floating.contains(window), let area = visibleDesks().first(where: { $0.desk === to })?.area {
+        mac.setFrame(window, follow(mac.frame(of: window), to: area))
     }
     arrange()
     mac.focus(window)
@@ -52,9 +65,9 @@ func bringUp(_ window: Window) {
     guard let desk = desk(of: window) else { return }
     if desk.leaf(of: window) != nil && desk.fullscreen != window { desk.fullscreen = nil }
     desk.lastFocused = window
-    if let key = deskKeys.first(where: { desks[$0] === desk }), key != current {
+    if !onMonitor(desk), desk.name != current {
         previous = current
-        current = key
+        current = desk.name
     }
 }
 
@@ -132,8 +145,7 @@ func swap(_ direction: Direction) {
               let beside = shown.first(where: { $0.area == there })?.desk {
         // A floating window keeps its place relative to the monitor.
         if desk.floating.contains(window) {
-            let frame = mac.frame(of: window).offsetBy(dx: there.minX - here.minX, dy: there.minY - here.minY)
-            mac.setFrame(window, inSight(frame, on: there))
+            mac.setFrame(window, follow(mac.frame(of: window), to: there))
         }
         move(window, from: desk, to: beside)
     } else {

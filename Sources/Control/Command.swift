@@ -32,7 +32,7 @@ struct CommandError: Error, Equatable {
 let usage = """
     usage: control <command>
 
-      show <desk>             show a desk on the main monitor (1-9, or a letter but F, H, J, K, L)
+      show <desk>             show a desk (0-9, or a letter but F, H, J, K, L)
       show previous           show the desk shown before
       send <desk>             send the focused window to a desk, and follow it
       focus left|down|up|right
@@ -112,10 +112,8 @@ extension Command {
     }
 }
 
-/// Every desk in a steady order: the desks with a key, then each extra monitor's, left to right as listed.
-func orderedDesks() -> [Desk] {
-    deskKeys.compactMap { desks[$0] } + mac.screens.dropFirst().compactMap { monitorDesks[$0.id] }
-}
+/// Every desk in a steady order.
+func orderedDesks() -> [Desk] { deskKeys.compactMap { desks[$0] } }
 
 /// The window a target names. The focused window comes first, then the windows on screen,
 /// so a match there needs no change of desk. On each desk, the window that last had focus comes first.

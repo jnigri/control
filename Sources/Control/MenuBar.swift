@@ -64,8 +64,8 @@ final class MenuBar: NSObject {
     /// Build the panel: a title, one row per desk in use, and Quit.
     func render() {
         var rows: [NSView] = [Row([label("DESKS", size: 10, color: Asimov.muted, mono: true)])]
-        for key in deskKeys where key == current || !desks[key]!.windows.isEmpty {
-            let isCurrent = key == current
+        for key in deskKeys where key == current || onMonitor(desks[key]!) || !desks[key]!.windows.isEmpty {
+            let isCurrent = key == current || onMonitor(desks[key]!)
             let cap = NSImageView(image: keyCap(key, size: 22, fill: isCurrent ? Asimov.accent : Asimov.raised,
                                                 ink: isCurrent ? .white : Asimov.text))
             rows.append(Row([cap] + appIcons(on: desks[key]!)) { [unowned self] in
@@ -184,7 +184,7 @@ func keyCap(_ key: String, size: CGFloat = 17, fill: NSColor? = nil, ink: NSColo
 }
 
 /// The menu bar picture: one map per monitor, left to right like the monitors themselves,
-/// with the current desk key on top of the main monitor's map.
+/// each with the key of its desk on top.
 /// A template image, so macOS colors it to match the menu bar.
 func minimaps() -> NSImage {
     let height: CGFloat = 16
@@ -198,7 +198,7 @@ func minimaps() -> NSImage {
         for ((desk, area), mapWidth) in zip(shown, widths) {
             let box = CGRect(x: x, y: 0, width: mapWidth, height: height)
             drawMap(of: desk, area, in: box)
-            if desk === desks[current] { drawKey(current, centeredIn: box) }
+            drawKey(desk.name, centeredIn: box)
             x += mapWidth + space
         }
         return true

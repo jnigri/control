@@ -10,7 +10,7 @@ extension ControlTests {
     func aLongRandomSessionNeverBreaksTheRules(seed: Int) {
         var random = Seeded(seed: UInt64(seed))
         func chance(_ percent: Int) -> Bool { Int.random(in: 0..<100, using: &random) < percent }
-        let keys = ["1", "2", "3", "M"]
+        let keys = ["1", "2", "3", "M", "0", "9"]
         let directions: [Direction] = [.left, .down, .up, .right]
         let layouts = [[mainMonitor], [mainMonitor, rightMonitor], [mainMonitor, monitor(3, y: 820)],
                        [mainMonitor, rightMonitor, monitor(3, x: -1000, y: 300)]]

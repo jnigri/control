@@ -24,6 +24,8 @@ func loadSavedDesks() {
     oldWindows = sameBoot ? mac.saved("windows") as? [String: String] ?? [:] : [:]
     oldApps = mac.saved("apps") as? [String: String] ?? [:]
     apps = oldApps
+    let monitors = mac.saved("monitors") as? [String: String] ?? [:]
+    monitorKeys = Dictionary(uniqueKeysWithValues: monitors.compactMap { id, key in CGDirectDisplayID(id).map { ($0, key) } })
     startWindows = Set(mac.windows())
     startApps = Set(startWindows.compactMap(mac.app(of:)))
 }
@@ -38,7 +40,7 @@ func savedDesk(for window: Window) -> Desk? {
     if name == nil, let app = mac.app(of: window), startWindows.contains(window) || !startApps.contains(app) {
         name = oldApps[app]
     }
-    return allDesks.first { $0.name == name }
+    return name.flatMap { desks[$0] }
 }
 
 /// Note the desk of every window, and of each app's oldest window (the lowest number).

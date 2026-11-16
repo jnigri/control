@@ -27,9 +27,9 @@ Each command is a few words. Quote a word that has spaces in it: `control focus 
 
 | Command                         | What it does                                                                 |
 | ------------------------------- | ---------------------------------------------------------------------------- |
-| `show <desk>`                   | Show a desk on the main monitor. Option + desk key.                         |
+| `show <desk>`                   | Show a desk on the main monitor. If an extra monitor shows it, focus it. Option + desk key. |
 | `show previous`                 | Show the desk that was on the main monitor before. Option + Tab.             |
-| `send <desk>`                   | Send the focused window to a desk, and show that desk. Option + Shift + desk key. |
+| `send <desk>`                   | Send the focused window to a desk, and show that desk. To the desk of an extra monitor, the window moves to that monitor. Option + Shift + desk key. |
 | `focus left\|down\|up\|right`    | Focus the neighbor that way, on any monitor. Option + H/J/K/L.             |
 | `focus window <number>`         | Focus a window by its number (see `windows`).                               |
 | `focus app <name>`              | Focus a window of an app, by name (`Safari`) or bundle identifier (`com.apple.Safari`). Any case. |
@@ -42,8 +42,10 @@ Each command is a few words. Quote a word that has spaces in it: `control focus 
 | `windows`                       | Every window, one per line, for scripts.                                    |
 | `help`                          | The list of commands. Works without the app.                                |
 
-**Desks.** A desk key: `1` to `9`, or a letter except `F`, `H`, `J`, `K`, `L`, in any case. Each extra
-monitor has a desk of its own, named `monitor <id>` in the lists. It is always on screen, so it needs no `show`.
+**Desks.** A desk key: `0` to `9`, or a letter except `F`, `H`, `J`, `K`, `L`, in any case. Each extra
+monitor takes a desk for itself: the first one `0`, the next one `9`, then `8`, down to `2`. That desk is always
+on screen, so `show` only gives it the focus. When the monitor is unplugged, the desk is one like the others
+again, until the monitor returns.
 
 **The `focus` commands that name a window** work wherever the window is. If its desk is not on screen,
 that desk comes on screen first (and `show previous` goes back). If another window covers the desk
@@ -75,7 +77,7 @@ Commands that change something print nothing. Errors go to standard error, as `c
    4212  Safari   Pull requests
 3
    4300  Notes    Groceries
-monitor 2  shown
+0  shown
    4400  Mail     Inbox
 ```
 
@@ -90,7 +92,7 @@ One line per window, columns separated by tabs, in the same order as `ls`:
 | Column | Example      | Meaning                                                       |
 | ------ | ------------ | ------------------------------------------------------------- |
 | 1      | `4211`       | Window number, for `focus window`. It lasts as long as the window. |
-| 2      | `1`          | Desk: a desk key, or `monitor <id>`.                          |
+| 2      | `1`          | Desk key.                                                     |
 | 3      | `shown`      | `shown` if the desk is on screen, else `hidden`.              |
 | 4      | `Ghostty`    | App name. May be empty.                                      |
 | 5      | `~/code` | Window title. May be empty.                                  |

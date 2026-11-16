@@ -12,11 +12,11 @@
 ---
 
 - Windows **tile on their own**: a new window splits the focused one, a closed one gives its space back.
-- Every window lives on a **desk**. The main monitor shows one desk at a time; each extra monitor is one more desk.
+- Every window lives on a **desk**. The main monitor shows one desk at a time. Each extra monitor **takes a desk for itself**: the first one desk 0, the next one 9, then 8, down to 2.
 - Pick a window on another desk, with Command + Tab, the Dock or Command + `, and **its desk comes on screen**.
 - Dialogs and fixed-size windows **float**.
 - The **mouse** works too: drag an edge and the neighbors follow, drop a window on another to trade places, drop it on another monitor to move it there.
-- An unplugged monitor lends its windows to the main one, and **gets them back**, in the same layout, when it returns.
+- An unplugged monitor leaves its desk behind: its key shows it on the main monitor. The monitor **gets it back**, in the same layout, when it returns.
 - A window in macOS's own full screen mode (a video, the green button) is **left alone**, and so is everything behind it.
 - Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window.
 - The menu bar shows the current desk and a small map of each monitor: one box per tiled window, filled for a full screen window. Click it to see every desk and its apps.
@@ -26,7 +26,7 @@
 
 | Key                       | Action                         |
 | ------------------------- | ------------------------------ |
-| Option + desk key         | Show desk                      |
+| Option + desk key         | Show desk, or focus it if an extra monitor shows it |
 | Option + Shift + desk key | Send window to desk            |
 | Option + Tab              | Previous desk                  |
 | Option + H/J/K/L          | Focus left/down/up/right       |
@@ -35,7 +35,11 @@
 | Option + Shift + F        | Toggle fullscreen              |
 | Option + Shift + Space    | Toggle floating                |
 
-Desk keys: 1–9 and every letter except F, H, J, K, L.
+Desk keys: 0–9 and every letter except F, H, J, K, L.
+
+With a second monitor plugged in, desk 0 is on it: Option + 0 gives it the focus, and Option + Shift + 0
+sends the focused window there. A third monitor takes desk 9, and so on: nine extra monitors at most.
+Desk 1 is always for the main monitor.
 
 ## Command line
 
@@ -89,7 +93,8 @@ Edit `Sources/Control/Settings.swift` and rebuild:
 ```swift
 let gap: CGFloat = 8
 let resizeStep: CGFloat = 0.05
-let deskKeys = "123456789ABCDEGIMNOPQRSTUVWXYZ".map(String.init)
+let deskKeys = "1234567890ABCDEGIMNOPQRSTUVWXYZ".map(String.init)
+let monitorDeskKeys = "098765432".map(String.init)
 ```
 
 ## Tests
@@ -110,5 +115,5 @@ What only a real Mac can show is in [TESTING.md](TESTING.md): a short list to go
 - Option + letter no longer types special characters (like Option + E for é).
 - Apps with a minimum size (Finder) can stick out of a small tile.
 - Hidden windows are parked just past a bottom corner of a monitor, with one point left on screen. Control picks a corner with no other monitor behind it, but that one point can show.
-- The keys trade places with a window on another monitor, or move a window to a monitor with nothing that way. To add a window to a monitor that already has some, drag it there.
+- Option + the key of an empty desk on an extra monitor does nothing: there is no window to give the focus to.
 - A window that changes its own size (the green button with Option, a double click on the title bar) keeps that size until the next change.

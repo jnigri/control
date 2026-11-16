@@ -3,16 +3,17 @@ import CoreGraphics
 
 // The state of the window manager, and `refresh()`, which keeps it in line with the screen.
 
-/// Desks with a key. The main monitor shows one of them at a time.
+/// Every desk, by key. The main monitor shows one of them at a time.
 var desks = Dictionary(uniqueKeysWithValues: deskKeys.map { ($0, Desk($0)) })
 var current = "1"
 var previous = "1"
 
-/// One desk per extra monitor, by display.
+/// The desk each extra monitor shows, by display. It stays there as long as the monitor does.
 var monitorDesks: [CGDirectDisplayID: Desk] = [:]
 
-/// The desks of monitors that went away. Each one comes back with its monitor.
-var unplugged: [CGDirectDisplayID: Desk] = [:]
+/// The desk key each extra monitor took, kept after it is unplugged and between runs,
+/// so a monitor that returns shows the same desk again.
+var monitorKeys: [CGDirectDisplayID: String] = [:]
 
 /// Windows moved out of sight, with the frame they had before.
 var hidden: [Window: CGRect] = [:]
@@ -57,11 +58,14 @@ func resume() {
     refresh()
 }
 
-var allDesks: [Desk] { Array(desks.values) + Array(monitorDesks.values) }
+var allDesks: [Desk] { Array(desks.values) }
+
+/// Whether a desk is the one of an extra monitor right now.
+func onMonitor(_ desk: Desk) -> Bool { monitorDesks.values.contains { $0 === desk } }
 
 func desk(of window: Window) -> Desk? { allDesks.first { $0.windows.contains(window) } }
 
-/// The monitor a desk lives on: its own for a monitor's desk, the main one for a desk with a key.
+/// The monitor a desk lives on: its own for an extra monitor's desk, the main one for the others.
 func monitor(of desk: Desk) -> CGDirectDisplayID? {
     monitorDesks.first { $0.value === desk }?.key ?? mac.screens.first?.id
 }
@@ -113,11 +117,12 @@ func refresh() {
 
 /// The user picked a window on a desk out of sight, with Command + Tab, the Dock or Command + `:
 /// that desk comes on screen. Right after a window closes, macOS picks one on its own: then the
-/// focus goes back to the desk on screen instead.
+/// focus goes back to the desk on screen instead. The same when the focus did not move but its
+/// desk went out of sight, with its monitor.
 func followFocus() {
-    guard let window = mac.focusedWindow(), window != lastFocus, let desk = desk(of: window),
+    guard let window = mac.focusedWindow(), let desk = desk(of: window),
           !visibleDesks().contains(where: { $0.desk === desk }) else { return }
-    if mac.now.timeIntervalSince(closedAt) < closeTime {
+    if window == lastFocus || mac.now.timeIntervalSince(closedAt) < closeTime {
         let here = desks[current]!
         if let other = here.lastFocused ?? here.windows.first { mac.focus(other) } else { mac.unfocus() }
     } else {
@@ -176,7 +181,7 @@ func arrange() {
             placed[window] = mac.frame(of: window)
         }
         for window in desk.floating {
-            if let old = hidden.removeValue(forKey: window) { mac.setFrame(window, inSight(old, on: area)) }
+            if let old = hidden.removeValue(forKey: window) { mac.setFrame(window, follow(old, to: area)) }
         }
     }
     for desk in allDesks where !isCovered(desk) && !shown.contains(where: { $0.desk === desk }) {
@@ -194,6 +199,14 @@ func inSight(_ old: CGRect, on area: CGRect) -> CGRect {
     if seen { return old }
     let size = CGSize(width: min(old.width, area.width), height: min(old.height, area.height))
     return CGRect(x: area.midX - size.width / 2, y: area.midY - size.height / 2, width: size.width, height: size.height)
+}
+
+/// A frame for a floating window on a desk that fills `area`. Last seen on another monitor, the
+/// window keeps its place relative to the monitor.
+func follow(_ old: CGRect, to area: CGRect) -> CGRect {
+    let center = CGPoint(x: old.midX, y: old.midY)
+    guard let from = mac.screens.first(where: { $0.frame.contains(center) })?.area else { return inSight(old, on: area) }
+    return inSight(old.offsetBy(dx: area.minX - from.minX, dy: area.minY - from.minY), on: area)
 }
 
 /// Park a window out of sight.
@@ -217,23 +230,31 @@ func parkingSpot(for size: CGSize, on screens: [CGRect]) -> CGPoint {
     } ?? spots[0]
 }
 
-/// Each extra monitor gets a desk. An unplugged monitor lends its windows to the main monitor,
-/// and takes them back, in the same layout, when it returns. Monitors also come and go
-/// for a moment when the Mac wakes up.
+/// Each extra monitor takes a desk of its own: the first one desk 0, the next one 9, and so on
+/// (see `monitorDeskKeys`). The main monitor keeps showing the other desks. When a monitor is
+/// unplugged, its desk stays, with its windows and layout: its key shows it on the main monitor,
+/// and it goes back to the monitor when that one returns. Monitors also come and go for a moment
+/// when the Mac wakes up.
 func syncMonitors() {
-    let ids = mac.screens.dropFirst().map(\.id)
-    for id in ids where monitorDesks[id] == nil {
-        let desk = unplugged.removeValue(forKey: id) ?? Desk("monitor \(id)")
-        for window in desk.windows {
-            // A window still open leaves the desk that held it meanwhile. A closed one is forgotten.
-            if let holder = Control.desk(of: window) { holder.remove(window) } else { desk.remove(window) }
+    let extra = mac.screens.dropFirst()
+    monitorDesks = monitorDesks.filter { id, _ in extra.contains { $0.id == id } }
+    for screen in extra where monitorDesks[screen.id] == nil {
+        let free = monitorDeskKeys.filter { key in !monitorDesks.values.contains { $0.name == key } }
+        // The key it had before, if no other monitor took it meanwhile. Past the last key, no desk.
+        guard let key = monitorKeys[screen.id].flatMap({ free.contains($0) ? $0 : nil }) ?? free.first else { continue }
+        let desk = desks[key]!
+        monitorDesks[screen.id] = desk
+        if monitorKeys[screen.id] != key {
+            monitorKeys[screen.id] = key
+            mac.save(Dictionary(uniqueKeysWithValues: monitorKeys.map { (String($0), $1) }), as: "monitors")
         }
-        monitorDesks[id] = desk
+        // The desk may be the one on the main monitor: its floating windows go along.
+        for window in desk.floating where hidden[window] == nil {
+            mac.setFrame(window, follow(mac.frame(of: window), to: screen.area))
+        }
     }
-    for (id, desk) in monitorDesks where !ids.contains(id) {
-        monitorDesks[id] = nil
-        unplugged[id] = desk
-        for window in desk.tiled { desks[current]!.tile(window, beside: nil) }
-        desks[current]!.floating += desk.floating
+    // The main monitor never shows a desk that an extra monitor took.
+    if onMonitor(desks[current]!) {
+        current = ([previous] + deskKeys).first { !onMonitor(desks[$0]!) }!
     }
 }

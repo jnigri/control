@@ -161,7 +161,6 @@ func restart(on fake: FakeMac) {
     current = "1"
     previous = "1"
     monitorDesks = [:]
-    unplugged = [:]
     hidden = [:]
     parkedOn = []
     placed = [:]

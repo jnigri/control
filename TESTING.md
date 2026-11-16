@@ -52,12 +52,15 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 ## A second monitor
 
 - [ ] Plug it in. The menu bar shows a second, empty map. No hidden window shows up on the new monitor (look along its edges: one point at most).
+- [ ] Option + 0 gives the focus to a window on it. The main monitor keeps its desk.
+- [ ] Option + Shift + 0 sends the focused window to it. Option + Shift + 1 sends it back.
 - [ ] Option + Shift + H or L moves the focused window to it, and back.
 - [ ] Drag a window to it. Drop one on a tile there: it splits that tile.
 - [ ] Drag a dialog to it, then change desk on the main monitor. The dialog stays.
 - [ ] Option + H or L moves the focus across monitors.
-- [ ] Unplug it. Its windows are tiled on the main monitor.
+- [ ] Unplug it. Its windows are out of sight, and Option + 0 shows them on the main monitor.
 - [ ] Plug it back. They are back on it, in the same layout.
+- [ ] Plug in a third monitor. It shows desk 9. Unplug and plug both: each one gets its own desk back.
 - [ ] With windows on both monitors, sleep the Mac and wake it. Both layouts are the same.
 - [ ] Close the laptop lid with the monitor plugged in, then open it again. Nothing is lost.
 - [ ] Play a full screen video on one monitor. With "Displays have separate Spaces" on (System Settings, Desktop & Dock), the other monitor keeps tiling. With it off, macOS blanks the other monitor; after the video both layouts are the same.

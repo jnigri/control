@@ -141,14 +141,14 @@ extension ControlTests {
         #expect(try Command(["windows"]).run() == """
             1\t1\thidden\tTerminal\ta tab
             2\t3\tshown\tNotes\t
-            15\tmonitor 2\tshown\tMail\tInbox
+            15\t0\tshown\tMail\tInbox
             """)
         #expect(try Command(["ls"]).run() == """
             1
                1   Terminal  a tab
             3  shown
                2   Notes
-            monitor 2  shown
+            0  shown
                15  Mail      Inbox
             """)
     }

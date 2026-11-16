@@ -33,7 +33,107 @@ extension ControlTests {
         #expect(fake.frames[a] == whole)
     }
 
-    @Test func unpluggingAMonitorBringsItsWindowsToTheMainOne() {
+    // Each extra monitor takes a desk with a key: 0 for the first one, then 9, then 8...
+
+    @Test func theFirstExtraMonitorTakesDeskZeroAndTheNextOneNine() {
+        let left = monitor(3, x: -1000)
+        fake.screens = [mainMonitor, rightMonitor]
+        refresh()
+        #expect(monitorDesks[2] === desks["0"])
+        fake.screens = [mainMonitor, rightMonitor, left]
+        refresh()
+        #expect(monitorDesks[2] === desks["0"])
+        #expect(monitorDesks[3] === desks["9"])
+        // The first one leaves and comes back: each keeps its desk.
+        fake.screens = [mainMonitor, left]
+        refresh()
+        #expect(monitorDesks[3] === desks["9"])
+        fake.screens = [mainMonitor, left, rightMonitor]
+        refresh()
+        #expect(monitorDesks[2] === desks["0"])
+        #expect(monitorDesks[3] === desks["9"])
+    }
+
+    @Test func aTenthExtraMonitorHasNoDesk() {
+        fake.screens = [mainMonitor] + (2...11).map { monitor($0, x: CGFloat($0) * 1000) }
+        refresh()
+        #expect(monitorDesks.count == 9)
+        #expect(!onMonitor(desks["1"]!))
+        show("2")   // taken by a monitor: desk 1 stays on the main one
+        #expect(current == "1")
+    }
+
+    @Test func theKeyOfAMonitorsDeskGivesItTheFocus() {
+        fake.screens = [mainMonitor, rightMonitor]
+        let x = fake.opens(1, on: rightMonitor)
+        let a = fake.opens(2)
+        show("0")
+        #expect(fake.focused == x)
+        #expect(current == "1")
+        #expect(fake.frames == [a: whole, x: whole.applying(onRight)])
+        // An empty monitor: nothing to focus, and the main monitor stays as it is.
+        fake.closes(x)
+        fake.focus(a)
+        show("0")
+        #expect(fake.focused == a)
+        #expect(fake.frames[a] == whole)
+    }
+
+    @Test func sendingAWindowToAMonitorsDeskMovesItToThatMonitor() {
+        fake.screens = [mainMonitor, rightMonitor]
+        let a = fake.opens(1), b = fake.opens(2)
+        send(to: "0")
+        #expect(current == "1")
+        #expect(desks["0"]!.tiled == [b])
+        #expect(fake.frames == [a: whole, b: whole.applying(onRight)])
+        #expect(fake.focused == b)
+        // And back, to a desk of the main monitor: that desk shows.
+        send(to: "3")
+        #expect(current == "3")
+        #expect(fake.frames[b] == whole)
+        #expect(visibleArea(of: a, on: fake) == 1)
+    }
+
+    @Test func aFloatingWindowSentToAMonitorsDeskMovesThereToo() {
+        fake.screens = [mainMonitor, rightMonitor]
+        let dialog = fake.opens(1, dialog: true)
+        send(to: "0")
+        #expect(desks["0"]!.floating == [dialog])
+        #expect(fake.frames[dialog] == rect(1300, 270, 400, 300))
+        send(to: "2")
+        #expect(fake.frames[dialog] == rect(300, 270, 400, 300))
+    }
+
+    @Test func aNewMonitorTakesItsDeskWithTheWindowsOnIt() {
+        let a = fake.opens(1)
+        send(to: "0")
+        let dialog = fake.opens(2, dialog: true)
+        show("1")
+        fake.screens = [mainMonitor, rightMonitor]
+        refresh()
+        #expect(current == "1")
+        #expect(fake.frames[a] == whole.applying(onRight))
+        #expect(fake.frames[dialog] == rect(1300, 270, 400, 300))
+    }
+
+    /// The main monitor never shows the same desk as another monitor.
+    @Test func aNewMonitorThatTakesTheDeskOnScreenLeavesThePreviousOneOnTheMainMonitor() {
+        let a = fake.opens(1)
+        show("3")
+        let b = fake.opens(2)
+        show("0")
+        let x = fake.opens(3)
+        let dialog = fake.opens(4, dialog: true)
+        fake.screens = [mainMonitor, rightMonitor]
+        refresh()
+        #expect(current == "3")
+        #expect(fake.frames[b] == whole)
+        #expect(fake.frames[x] == whole.applying(onRight))
+        #expect(fake.frames[dialog] == rect(1300, 270, 400, 300))
+        #expect(visibleArea(of: a, on: fake) == 1)
+    }
+
+    @Test func anUnpluggedMonitorLeavesItsDeskAKeyAway() {
         fake.screens = [mainMonitor, rightMonitor]
         let a = fake.opens(1)
         let x = fake.opens(2, on: rightMonitor)
@@ -41,14 +141,19 @@ extension ControlTests {
         fake.screens = [mainMonitor]
         refresh()
         #expect(monitorDesks.isEmpty)
-        #expect(desks["1"]!.tiled == [a, x])
-        #expect(desks["1"]!.floating == [dialog])
-        #expect(fake.frames[a] == leftHalf)
-        #expect(fake.frames[x] == rightHalf)
+        #expect(current == "1")
+        #expect(fake.focused == a)   // the focus does not stay on a window out of sight
+        #expect(desks["1"]!.windows == [a])
+        #expect(fake.frames[a] == whole)
+        #expect(visibleArea(of: x, on: fake) == 1)
+        #expect(visibleArea(of: dialog, on: fake) == 1)
+        show("0")
+        #expect(fake.frames[x] == whole)
+        #expect(fake.frames[dialog] == rect(300, 270, 400, 300))
+        #expect(visibleArea(of: a, on: fake) == 1)
     }
 
-    /// A monitor also goes away for a moment each time the Mac wakes up. Before, its windows
-    /// all ended up on the main monitor for good.
+    /// A monitor also goes away for a moment each time the Mac wakes up.
     @Test func aMonitorThatComesBackGetsItsWindowsAndLayoutBack() {
         fake.screens = [mainMonitor, rightMonitor]
         let a = fake.opens(1)
@@ -60,14 +165,29 @@ extension ControlTests {
 
         fake.screens = [mainMonitor]
         refresh()
-        #expect(desks["1"]!.tiled == [a, x, y])
+        #expect(desks["1"]!.windows == [a])
 
         fake.screens = [mainMonitor, rightMonitor]
         refresh()
-        #expect(desks["1"]!.windows == [a])
         #expect(monitorDesks[2]!.tiled == [x, y])
         #expect(monitorDesks[2]!.floating == [dialog])
         #expect(fake.frames == before)
+    }
+
+    /// The same when its desk was on the main monitor meanwhile.
+    @Test func aMonitorThatComesBackTakesItsDeskFromTheMainMonitor() {
+        fake.screens = [mainMonitor, rightMonitor]
+        let a = fake.opens(1)
+        let x = fake.opens(2, on: rightMonitor)
+        fake.screens = [mainMonitor]
+        refresh()
+        show("0")
+        let y = fake.opens(3)   // opened meanwhile, on desk 0: it goes along
+        fake.screens = [mainMonitor, rightMonitor]
+        refresh()
+        #expect(current == "1")
+        #expect(fake.frames[a] == whole)
+        #expect(monitorDesks[2]!.tiled == [x, y])
     }
 
     @Test func aWindowClosedWhileItsMonitorWasAwayIsForgotten() {
@@ -89,6 +209,7 @@ extension ControlTests {
         let x = fake.opens(1, on: rightMonitor)
         fake.screens = [mainMonitor]
         refresh()
+        show("0")
         send(to: "3")
         #expect(desks["3"]!.tiled == [x])
         #expect(fake.frames[x] == whole)
