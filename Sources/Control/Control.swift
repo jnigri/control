@@ -56,6 +56,7 @@ let closeTime: TimeInterval = 1
 /// The Mac woke up or the screen unlocked: catch up with what happened meanwhile.
 func resume() {
     catchingUpUntil = mac.now.addingTimeInterval(catchUpTime)
+    log("resume", ["catchUpFor": catchUpTime, "locked": locked, "asleep": asleep])
     // Monitors may have come and gone meanwhile, and macOS then brings parked windows back into
     // view. They may be back to how they were, so park every hidden window again.
     parkedOn = []
@@ -85,8 +86,13 @@ func visibleDesks() -> [(desk: Desk, area: CGRect)] {
 /// Bring the model in line with the windows that exist, then put every window in place.
 /// Runs after every event and every key: simple, and it fixes itself if an event is missed.
 func refresh() {
+    logMonitors()
     // With the lid closed and no monitor, there is nothing to arrange.
-    guard !paused, !mac.screens.isEmpty else { return }
+    guard !paused, !mac.screens.isEmpty else {
+        logChange("skip", \.skip, locked ? "locked" : asleep ? "asleep" : "no monitor") { ["why": $0] }
+        return
+    }
+    logMemory.skip = ""
     syncMonitors()
 
     // Remember which window has focus, so the next new window splits it.
@@ -106,13 +112,30 @@ func refresh() {
     // An app that gave no answer did not say its windows closed: they stay too.
     let catchingUp = mac.now < catchingUpUntil
     let silent = mac.silentApps
-    for desk in allDesks where !isCovered(desk) && !catchingUp {
-        for window in desk.windows where !live.contains(window) && !silent.contains(pid(of: window))
-            && (covered.isEmpty || hidden[window] == nil) {
+    logChange("catch-up", \.catchingUp, catchingUp) { ["state": $0 ? "start" : "end"] }
+    logChange("covered", \.covered, covered) { ["monitors": $0.map { Int($0) }.sorted()] }
+    logChange("silent", \.silent, silent) { pids in
+        ["apps": pids.sorted().map { id in
+            ["pid": Int(id), "app": allDesks.flatMap(\.windows).first { pid(of: $0) == id }.flatMap(mac.app(of:)) ?? "?"]
+        }]
+    }
+    // A missing window that stays, and why. The others leave their desk.
+    var kept: [Window: String] = [:]
+    for desk in allDesks {
+        for window in desk.windows where !live.contains(window) {
+            let why = catchingUp ? "catching up" : isCovered(desk) ? "covered monitor"
+                : silent.contains(pid(of: window)) ? "silent app"
+                : !covered.isEmpty && hidden[window] != nil ? "hidden beside full screen" : nil
+            if let why {
+                kept[window] = why
+                continue
+            }
+            log("gone", tag(window, ["desk": desk.name]))
             desk.remove(window)
             closedAt = mac.now
         }
     }
+    logChange("kept", \.kept, kept) { kept in ["windows": kept.map { tag($0.key, ["why": $0.value]) }] }
     hidden = hidden.filter { desk(of: $0.key) != nil }
     placed = placed.filter { desk(of: $0.key) != nil }
 
@@ -122,7 +145,11 @@ func refresh() {
 
     // A new window has the focus because it just opened, maybe on its saved desk: not a pick.
     if !catchingUp, mac.focusedWindow().map(new.contains) != true { followFocus() }
+    let before = lastFocus
     lastFocus = mac.focusedWindow()
+    if lastFocus != before {
+        log("focus", lastFocus.map { tag($0, ["desk": desk(of: $0)?.name ?? ""]) } ?? ["w": NSNull()])
+    }
     arrange()
 }
 
@@ -133,7 +160,9 @@ func refresh() {
 func followFocus() {
     guard let window = mac.focusedWindow(), let desk = desk(of: window),
           !visibleDesks().contains(where: { $0.desk === desk }) else { return }
-    if window == lastFocus || mac.now.timeIntervalSince(closedAt) < closeTime {
+    let stays = window == lastFocus || mac.now.timeIntervalSince(closedAt) < closeTime
+    log("follow-focus", tag(window, ["desk": desk.name, "did": stays ? "focus went back" : "desk came up"]))
+    if stays {
         let here = desks[current]!
         if let other = here.lastFocused ?? here.windows.first { mac.focus(other) } else { mac.unfocus() }
     } else {
@@ -166,13 +195,21 @@ func adopt(_ window: Window) {
     let center = CGPoint(x: rect.midX, y: rect.midY)
     let shown = visibleDesks()
     let there = shown.first { $0.area.contains(center) }?.desk
-    let stays = mac.shouldFloat(window) || wasOpenAtStart(window)
+    let floats = mac.shouldFloat(window)
+    let stays = floats || wasOpenAtStart(window)
     let here = shown.first { $0.desk === activeDesk && !isCovered($0.desk) }?.desk
-    let desk = savedDesk(for: window) ?? (stays ? there : nil) ?? here ?? there ?? desks[current]!
-    if mac.shouldFloat(window) {
+    let saved = savedDesk(for: window)
+    let desk = saved ?? (stays ? there : nil) ?? here ?? there ?? desks[current]!
+    log("adopt", tag(window, [
+        "desk": desk.name, "frame": box(rect), "floating": floats,
+        "rule": saved != nil ? "saved" : stays && there != nil ? "stays where it is"
+            : here != nil ? "active desk" : there != nil ? "monitor under it" : "current",
+    ]))
+    if floats {
         desk.floating.append(window)
         // After a crash of Control the window may still be parked out of sight: bring it back.
         if let area = visibleDesks().first(where: { $0.desk === desk })?.area, inSight(rect, on: area) != rect {
+            log("restore", tag(window, ["from": box(rect), "to": box(inSight(rect, on: area))]))
             mac.setFrame(window, inSight(rect, on: area))
         }
     } else {
@@ -189,13 +226,18 @@ func arrange() {
     let frames = mac.screens.map(\.frame)
     if frames != parkedOn {
         parkedOn = frames
-        for (window, old) in hidden { mac.setPosition(window, parkingSpot(for: old.size, on: frames)) }
+        for (window, old) in hidden {
+            log("repark", tag(window, ["why": "monitors changed", "to": spot(parkingSpot(for: old.size, on: frames))]))
+            mac.setPosition(window, parkingSpot(for: old.size, on: frames))
+        }
     }
     // A parked window may be back in view all the same: macOS pulls windows back a moment after
     // monitors change, and an app busy waking up may not take the move. Park it again.
     for window in hidden.keys {
         let now = mac.frame(of: window)
         if frames.contains(where: { now.intersection($0).width * now.intersection($0).height > 1 }) {
+            log("repark", tag(window, ["why": "back in view", "found": box(now),
+                                       "to": spot(parkingSpot(for: now.size, on: frames))]))
             mac.setPosition(window, parkingSpot(for: now.size, on: frames))
         }
     }
@@ -205,10 +247,15 @@ func arrange() {
         for (window, rect) in desk.layout(in: area) {
             hidden[window] = nil
             mac.setFrame(window, rect)
-            placed[window] = mac.frame(of: window)
+            let took = mac.frame(of: window)
+            if took != placed[window] { logPlace(window, on: desk, asked: rect, took: took) }
+            placed[window] = took
         }
         for window in desk.floating {
-            if let old = hidden.removeValue(forKey: window) { mac.setFrame(window, follow(old, to: area)) }
+            if let old = hidden.removeValue(forKey: window) {
+                log("restore", tag(window, ["from": box(old), "to": box(follow(old, to: area))]))
+                mac.setFrame(window, follow(old, to: area))
+            }
         }
     }
     for desk in allDesks where !isCovered(desk) && !shown.contains(where: { $0.desk === desk }) {
@@ -216,6 +263,17 @@ func arrange() {
     }
     mac.changed()
     saveDesks()
+    logLayout()
+}
+
+/// A tiled window took a new frame. When it is not the one asked for, say by how much on each
+/// side: left, top, right, bottom. More than zero is a gap, less is the window sticking out.
+func logPlace(_ window: Window, on desk: Desk, asked: CGRect, took: CGRect) {
+    log("place", tag(window, ["desk": desk.name, "asked": box(asked), "took": box(took)]))
+    let gaps = [took.minX - asked.minX, took.minY - asked.minY, asked.maxX - took.maxX, asked.maxY - took.maxY]
+    if gaps.contains(where: { abs($0) > 2 }) {
+        log("refused", tag(window, ["desk": desk.name, "gaps": gaps.map { (Double($0) * 10).rounded() / 10 }]))
+    }
 }
 
 /// A frame to give back to a floating window. Its old frame may be out of sight by now: on a
@@ -241,6 +299,7 @@ func hide(_ window: Window) {
     // After a crash of Control the window may still be parked: don't take that for its real place.
     let old = inSight(mac.frame(of: window), on: mac.screens[0].area)
     hidden[window] = old
+    log("park", tag(window, ["from": box(old), "to": spot(parkingSpot(for: old.size, on: mac.screens.map(\.frame)))]))
     mac.setPosition(window, parkingSpot(for: old.size, on: mac.screens.map(\.frame)))
 }
 
@@ -264,12 +323,17 @@ func parkingSpot(for size: CGSize, on screens: [CGRect]) -> CGPoint {
 /// when the Mac wakes up.
 func syncMonitors() {
     let extra = mac.screens.dropFirst()
+    for (id, desk) in monitorDesks where !extra.contains(where: { $0.id == id }) {
+        log("monitor-desk", ["did": "lost", "monitor": Int(id), "desk": desk.name])
+    }
     monitorDesks = monitorDesks.filter { id, _ in extra.contains { $0.id == id } }
     for screen in extra where monitorDesks[screen.id] == nil {
         let free = monitorDeskKeys.filter { key in !monitorDesks.values.contains { $0.name == key } }
         // The key it had before, if no other monitor took it meanwhile. Past the last key, no desk.
         guard let key = monitorKeys[screen.id].flatMap({ free.contains($0) ? $0 : nil }) ?? free.first else { continue }
         let desk = desks[key]!
+        log("monitor-desk", ["did": "took", "monitor": Int(screen.id), "desk": key, "savedKey": monitorKeys[screen.id] ?? "",
+                             "windows": desk.windows.count])
         monitorDesks[screen.id] = desk
         if monitorKeys[screen.id] != key {
             monitorKeys[screen.id] = key
@@ -277,11 +341,14 @@ func syncMonitors() {
         }
         // The desk may be the one on the main monitor: its floating windows go along.
         for window in desk.floating where hidden[window] == nil {
+            log("restore", tag(window, ["why": "its desk went to a monitor", "to": box(follow(mac.frame(of: window), to: screen.area))]))
             mac.setFrame(window, follow(mac.frame(of: window), to: screen.area))
         }
     }
     // The main monitor never shows a desk that an extra monitor took.
     if onMonitor(desks[current]!) {
+        let taken = current
         current = ([previous] + deskKeys).first { !onMonitor(desks[$0]!) }!
+        log("desk", ["did": "a monitor took the desk of the main one", "from": taken, "to": current])
     }
 }

@@ -11,6 +11,10 @@ set -e
 
 swift build -c release
 
+# The date and commit of the code, so a debug log says which build wrote it.
+VERSION_DATE="$(git log -1 --format=%cd --date=format:%Y.%m.%d 2>/dev/null || echo 0)"
+VERSION_COMMIT="$(git describe --always --dirty 2>/dev/null || echo unknown)"
+
 rm -rf Control.app
 mkdir -p Control.app/Contents/MacOS Control.app/Contents/Resources
 cp .build/release/Control Control.app/Contents/MacOS/Control
@@ -27,6 +31,8 @@ cat > Control.app/Contents/Info.plist <<PLIST
     <key>CFBundleExecutable</key>     <string>Control</string>
     <key>CFBundleIconFile</key>       <string>AppIcon</string>
     <key>CFBundlePackageType</key>    <string>APPL</string>
+    <key>CFBundleShortVersionString</key> <string>$VERSION_DATE</string>
+    <key>CFBundleVersion</key>        <string>$VERSION_COMMIT</string>
     <key>LSMinimumSystemVersion</key> <string>14.0</string>
     <key>LSUIElement</key>            <true/>
 </dict>

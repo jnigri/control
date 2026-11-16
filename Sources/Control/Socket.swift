@@ -27,6 +27,11 @@ func commandLine(_ words: [String]) -> Int32 {
         FileHandle.standardError.write(Data((usage + "\n").utf8))
         return 2
     }
+    // The app does the work, in its own folder: give it the whole path.
+    var words = words
+    if words.first == "export", words.count == 2 {
+        words[1] = URL(fileURLWithPath: (words[1] as NSString).expandingTildeInPath).standardizedFileURL.path
+    }
     do {
         let output = try ask(words)
         if !output.isEmpty { print(output) }

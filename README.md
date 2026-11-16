@@ -84,17 +84,66 @@ The build uses it when it finds it. To use a certificate with another name:
 SIGN_IDENTITY="Your Certificate Name" make install
 ```
 
-To quit: menu bar → Quit Control. Hidden windows come back on screen first.
+To quit: menu bar → the power button. Hidden windows come back on screen first.
 
 ## Settings
 
-Edit `Sources/Control/Settings.swift` and rebuild:
+Menu bar → the gear opens the settings window. What it shows is kept in `~/.config/control/config.json`:
+
+```json
+{
+  "log" : false,
+  "logFolder" : "~/Library/Logs/Control"
+}
+```
+
+- `log`, `logFolder`: the debug log, below.
+
+The file is the source of truth. Control reads it when it starts. After changing it by hand, click
+**Sync settings** in the window (or restart Control) to use what it says. A file that cannot be read
+changes nothing, and is never overwritten: the window says what is wrong with it.
+
+The layout and the keys are set in code. Edit `Sources/Control/Settings.swift` and rebuild:
 
 ```swift
 let gap: CGFloat = 8
 let resizeStep: CGFloat = 0.05
 let deskKeys = "1234567890ABCDEGIMNOPQRSTUVWXYZ".map(String.init)
 let monitorDeskKeys = "098765432".map(String.init)
+```
+
+## Debug log
+
+When windows end up in the wrong place, the debug log says how they got there. It is off until you
+switch it on in the settings window. Then Control writes one line for each thing that happens:
+
+- what macOS reports: sleep and wake, lock and unlock, monitors, apps and windows opening and closing,
+- what Control does about it: which desk a window joins and why, which windows it keeps or lets go,
+- where each window is: the frame Control asked for and the one the window took.
+
+**Written:** times, window numbers, process numbers, bundle identifiers (like `com.apple.Safari`), window
+positions and sizes, monitors, desk keys, the names of Control's own commands.
+
+**Never written:** window titles, app names, the text given to `control focus title` or `control focus app`,
+any key you type, file paths.
+
+The log stays on your Mac: `control.log` in the log folder, readable by you only, 4 megabytes at most
+(older lines go away). Control sends nothing anywhere.
+
+To report a bug, switch the log on, wait for the bug to happen again, then click **Export log…** in the
+settings window, or run:
+
+```sh
+control export            # a zip on the Desktop
+control export ~/Downloads
+```
+
+The zip holds the log, a picture of where every window is right now, your `config.json`, and the versions
+of Control and macOS. They are plain text files: open the zip and read them before you send it.
+Each line of the log is one JSON object, so `grep` and `jq` work on it:
+
+```sh
+grep '"e":"adopt"' ~/Library/Logs/Control/control.log
 ```
 
 ## Tests

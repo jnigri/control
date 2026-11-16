@@ -61,7 +61,7 @@ final class MenuBar: NSObject {
         clickOutside = nil
     }
 
-    /// Build the panel: a title, one row per desk in use, and Quit.
+    /// Build the panel: a title, one row per desk in use, then Settings and Quit.
     func render() {
         var rows: [NSView] = [Row([label("DESKS", size: 10, color: Asimov.muted, mono: true)])]
         for key in deskKeys where key == current || onMonitor(desks[key]!) || !desks[key]!.windows.isEmpty {
@@ -79,7 +79,14 @@ final class MenuBar: NSObject {
         line.fillColor = Asimov.raised
         line.heightAnchor.constraint(equalToConstant: 1).isActive = true
         rows.append(line)
-        rows.append(Row([label("Quit Control", size: 13, color: Asimov.text)]) { NSApp.terminate(nil) })
+        let space = NSView()
+        space.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        rows.append(Row([space,
+                         IconButton("gearshape", help: "Settings") { [unowned self] in
+                             close()
+                             settingsWindow.show()
+                         },
+                         IconButton("power", help: "Quit Control") { NSApp.terminate(nil) }]))
 
         let column = NSStackView(views: rows)
         column.orientation = .vertical
@@ -145,6 +152,48 @@ final class Row: NSView {
     override func mouseDown(with event: NSEvent) {}   // needed, or mouseUp never comes
     override func mouseUp(with event: NSEvent) { action?() }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+/// A small button with a system symbol on it. It highlights under the mouse.
+final class IconButton: NSView {
+    let action: () -> Void
+    var hovered = false { didSet { needsDisplay = true } }
+
+    init(_ symbol: String, help: String, action: @escaping () -> Void) {
+        self.action = action
+        super.init(frame: .zero)
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: help)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)) ?? NSImage()
+        let icon = NSImageView(image: image)
+        icon.contentTintColor = Asimov.text
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(icon)
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: 28), heightAnchor.constraint(equalToConstant: 26),
+            icon.centerXAnchor.constraint(equalTo: centerXAnchor), icon.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        toolTip = help
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(help)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self))
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard hovered else { return }
+        Asimov.raised.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: 6, yRadius: 6).fill()
+    }
+
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
+    override func mouseDown(with event: NSEvent) {}   // needed, or mouseUp never comes
+    override func mouseUp(with event: NSEvent) { action() }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func accessibilityPerformPress() -> Bool { action(); return true }
 }
 
 /// Make `view` fill `container` exactly.

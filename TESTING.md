@@ -68,6 +68,20 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 - [ ] Play a full screen video on one monitor. With "Displays have separate Spaces" on (System Settings, Desktop & Dock), the other monitor keeps tiling. With it off, macOS blanks the other monitor; after the video both layouts are the same.
 - [ ] Try the monitor on the left, on the right, and above or below (System Settings, Displays, Arrange). Each time, change desk and check that hidden windows stay hidden.
 
+## Settings and the debug log
+
+- [ ] Click the menu bar item. The panel ends with a gear and a power button. Each one lights up under the pointer.
+- [ ] The power button quits Control, and hidden windows come back.
+- [ ] The gear opens the settings window, in front of the other windows. It is not tiled.
+- [ ] Tick "Write a debug log". `~/.config/control/config.json` says `"log" : true`, and `control.log` appears in the folder, starting with a `start` and a `snapshot` line.
+- [ ] Choose another folder. The file says so, and a new `control.log` starts there.
+- [ ] Set `"log": false` in the file by hand, then click "Sync settings". The box is no longer ticked, and the log stops growing.
+- [ ] Set it back to `true`, quit Control and open it again. The log grows again.
+- [ ] Break the file (remove a quote), click "Sync settings". The window says the file could not be read, and the file is as you left it.
+- [ ] With the log on: open, move, resize, drag and close windows, change desk, lock, sleep and wake, plug a monitor. Each one gives a few lines, and a quiet Mac gives none.
+- [ ] `grep` the log for the title of a window that was open all along. Nothing.
+- [ ] "Export log…" and `control export`: a zip lands in the folder you chose and on the Desktop. Each holds `control.log`, `info.txt`, `snapshot.json` and `config.json`.
+
 ## Command line
 
 - [ ] `control ls` lists the desks and their windows with titles, and `control windows` the same, tab-separated.

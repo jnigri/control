@@ -19,11 +19,13 @@ func show(_ key: String) {
     syncMonitors()
     activeDesk = desks[key]!
     if onMonitor(desks[key]!) {
+        log("desk", ["did": "focus a monitor's desk", "desk": key])
         arrange()
         if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) }
         return
     }
     guard key != current else { return }
+    log("desk", ["did": "show", "desk": key, "from": current])
     previous = current
     current = key
     arrange()
@@ -67,6 +69,7 @@ func bringUp(_ window: Window) {
     if desk.leaf(of: window) != nil && desk.fullscreen != window { desk.fullscreen = nil }
     desk.lastFocused = window
     if !onMonitor(desk), desk.name != current {
+        log("desk", tag(window, ["did": "came up for a window", "desk": desk.name, "from": current]))
         previous = current
         current = desk.name
     }
@@ -75,6 +78,7 @@ func bringUp(_ window: Window) {
 /// Take a window off its desk and put it on another. Tiled stays tiled, floating stays floating.
 func move(_ window: Window, from: Desk, to: Desk, beside target: Window? = nil) {
     let wasFloating = from.floating.contains(window)
+    log("desk", tag(window, ["did": "move", "from": from.name, "to": to.name, "floating": wasFloating]))
     from.remove(window)
     if wasFloating {
         to.floating.append(window)
@@ -88,6 +92,7 @@ func move(_ window: Window, from: Desk, to: Desk, beside target: Window? = nil) 
 func exchange(_ a: Window, _ b: Window) {
     guard let deskA = desk(of: a), let deskB = desk(of: b),
           let leafA = deskA.leaf(of: a), let leafB = deskB.leaf(of: b) else { return }
+    log("desk", tag(a, ["did": "trade places", "desk": deskA.name, "with": tag(b, ["desk": deskB.name])]))
     leafA.window = b
     leafB.window = a
     guard deskA !== deskB else { return }
@@ -170,6 +175,7 @@ func resize(by step: CGFloat) {
 func toggleFullscreen() {
     guard let (window, desk) = focusedOnDesk(), desk.leaf(of: window) != nil else { return }
     desk.fullscreen = desk.fullscreen == window ? nil : window
+    log("desk", tag(window, ["did": desk.fullscreen == nil ? "stop covering" : "cover", "desk": desk.name]))
     arrange()
     mac.focus(window)
 }
@@ -177,6 +183,7 @@ func toggleFullscreen() {
 /// Option + Shift + Space: float a tiled window in the middle of its monitor, or tile it again.
 func toggleFloating() {
     guard let (window, desk) = focusedOnDesk() else { return }
+    log("desk", tag(window, ["did": desk.floating.contains(window) ? "tile" : "float", "desk": desk.name]))
     if desk.floating.contains(window) {
         desk.floating.removeAll { $0 == window }
         desk.tile(window, beside: nil)
@@ -210,7 +217,10 @@ func dropped(_ window: Window, at pointer: CGPoint) {
     let now = mac.frame(of: window)
     // We move windows too, and the mouse button may be down for something else, like selecting text.
     // A real drag keeps the pointer on the window, and takes a tiled window off the frame we gave it.
-    guard now.insetBy(dx: -20, dy: -20).contains(pointer), placed[window] != now else { return }
+    guard now.insetBy(dx: -20, dy: -20).contains(pointer), placed[window] != now else {
+        log("drop", tag(window, ["did": "nothing: not a drag", "pointer": spot(pointer), "frame": box(now)]))
+        return
+    }
     let tiled = desk.leaf(of: window) != nil
     // The pointer may be in the menu bar or the Dock of the monitor: look at whole monitors.
     let screen = mac.screens.first { $0.frame.contains(pointer) }
@@ -219,10 +229,15 @@ func dropped(_ window: Window, at pointer: CGPoint) {
 
     if tiled, desk.fullscreen != window, let before = placed[window],
        abs(now.width - before.width) > 2 || abs(now.height - before.height) > 2 {
+        log("drop", tag(window, ["did": "resize", "pointer": spot(pointer), "from": box(before), "frame": box(now)]))
         desk.resize(window, from: before, to: now, in: home.area)
     } else if let target, target !== desk {
+        log("drop", tag(window, ["did": "to another monitor", "pointer": spot(pointer), "frame": box(now)]))
         move(window, from: desk, to: target, beside: under)
     } else if tiled, let under, under != window {
+        log("drop", tag(window, ["did": "on another tile", "pointer": spot(pointer), "frame": box(now)]))
         exchange(window, under)
+    } else {
+        log("drop", tag(window, ["did": "snap back", "pointer": spot(pointer), "frame": box(now)]))
     }
 }

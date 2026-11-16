@@ -15,6 +15,7 @@ enum Command: Equatable {
     case fullscreen, float
     case list                    // desks and their windows, for people
     case windows                 // every window, for scripts
+    case export(String?)         // the debug log, zipped into a folder (the Desktop when nil)
 }
 
 /// A way to name a window from outside.
@@ -46,6 +47,8 @@ let usage = """
       ls                      list the desks in use and their windows: number, app, title
       windows                 the same for scripts, one line per window, tab-separated:
                               number, desk, shown or hidden, app, title
+      export [folder]         zip the debug log to send with a bug report, on the Desktop or
+                              in a folder, and print where it is
     """
 
 extension Command {
@@ -78,6 +81,8 @@ extension Command {
             default: throw unknown
             }
         case ("swap", 1): self = .swap(try direction(rest[0]))
+        case ("export", 0): self = .export(nil)
+        case ("export", 1): self = .export(rest[0])
         case (_, 0):
             guard let command = alone[verb] else { throw unknown }
             self = command
@@ -90,8 +95,19 @@ extension Command {
     /// A command that does not apply (no neighbor that way, say) does nothing, like its key.
     @discardableResult
     func run() throws -> String {
+        // Nothing moves for an export: it works with the screen locked too.
+        if case .export(let folder) = self {
+            log("command", ["name": "export"])
+            do { return try exportLog(into: folder.map { URL(fileURLWithPath: $0) }).path } catch {
+                throw CommandError("cannot export: \(error.localizedDescription)")
+            }
+        }
         // Apps report no windows while the screen is locked: moving them now would lose the layout.
-        if paused { throw CommandError("the screen is locked") }
+        if paused {
+            if let logName { log("command", ["name": logName, "rejected": locked ? "locked" : "asleep"]) }
+            throw CommandError("the screen is locked")
+        }
+        if let logName { log("command", ["name": logName]) }
         switch self {
         case .show(let key): Control.show(key)
         case .showPrevious: Control.show(previous)
@@ -107,8 +123,30 @@ extension Command {
         case .float: toggleFloating()
         case .list: return listing()
         case .windows: return windowList()
+        case .export: break
         }
         return ""
+    }
+
+    /// The command, for the debug log: its name, with a desk key, a direction or a window number.
+    /// Never the text someone typed to find a window. The lists change nothing: no line for them.
+    var logName: String? {
+        switch self {
+        case .show(let key): "show \(key)"
+        case .showPrevious: "show previous"
+        case .send(let key): "send \(key)"
+        case .focus(let direction): "focus \(direction.rawValue)"
+        case .focusWindow(.number(let number)): "focus window \(number)"
+        case .focusWindow(.app): "focus app"
+        case .focusWindow(.title): "focus title"
+        case .swap(let direction): "swap \(direction.rawValue)"
+        case .grow: "grow"
+        case .shrink: "shrink"
+        case .fullscreen: "fullscreen"
+        case .float: "float"
+        case .export: "export"
+        case .list, .windows: nil
+        }
     }
 }
 

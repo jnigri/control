@@ -161,7 +161,10 @@ final class FakeMac: System {
     let fake = FakeMac()
 
     /// Start from an empty Control on a Mac with one monitor and no windows.
-    init() { restart(on: fake) }
+    init() {
+        logSink = nil
+        restart(on: fake)
+    }
 }
 
 /// Control starts: fresh state, then it reads what the last run saved.
@@ -181,6 +184,7 @@ func restart(on fake: FakeMac) {
     lastFocus = nil
     activeDesk = nil
     closedAt = .distantPast
+    logMemory = LogMemory()
     loadSavedDesks()
     refresh()
 }

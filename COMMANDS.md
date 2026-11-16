@@ -40,6 +40,7 @@ Each command is a few words. Quote a word that has spaces in it: `control focus 
 | `float`                         | Float the focused window, or tile it again. Option + Shift + Space.         |
 | `ls`                            | The desks in use and their windows, for people.                             |
 | `windows`                       | Every window, one per line, for scripts.                                    |
+| `export [folder]`               | Zip the debug log, to send with a bug report: on the Desktop, or in a folder. Prints the path of the zip. Works with the screen locked. See the README, "Debug log". |
 | `help`                          | The list of commands. Works without the app.                                |
 
 **Desks.** A desk key: `0` to `9`, or a letter except `F`, `H`, `J`, `K`, `L`, in any case. Each extra

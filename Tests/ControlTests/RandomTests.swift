@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 @testable import Control
 
@@ -15,8 +16,17 @@ extension ControlTests {
         let layouts = [[mainMonitor], [mainMonitor, rightMonitor], [mainMonitor, monitor(3, y: 820)],
                        [mainMonitor, rightMonitor, monitor(3, x: -1000, y: 300)]]
         var next = 0
+        // The debug log is on all along. No line may hold a title or an app's name, and each is valid JSON.
+        var badLines: [String] = []
+        logSink = { line in
+            if line.contains("SECRET") || (try? JSONSerialization.jsonObject(with: Data(line.utf8))) == nil { badLines.append(line) }
+        }
 
         for step in 0..<300 {
+            for window in fake.open where fake.titles[window] == nil {
+                fake.titles[window] = "SECRET title"
+                fake.names[window] = "SECRET name"
+            }
             let reported = fake.windows()
             let visible = visibleDesks()
             // Past a handful of windows per desk, tiles get too thin to mean anything.
@@ -111,6 +121,8 @@ extension ControlTests {
             }
             expectRules(fake, "seed \(seed), step \(step), action \(action)")
         }
+        logSnapshot("the end")
+        #expect(badLines.isEmpty, "seed \(seed): \(badLines.prefix(3))")
     }
 }
 

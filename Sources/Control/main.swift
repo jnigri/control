@@ -18,6 +18,7 @@ app.setActivationPolicy(.accessory)
 
 // The menu bar shows the current desk key. Click it to list the desks.
 let menuBar = MenuBar()
+let settingsWindow = SettingsWindow()
 
 // Keys. See the table in README.md.
 for key in deskKeys {
@@ -52,6 +53,9 @@ if Bundle.main.bundleIdentifier != nil {
 
 // Put windows back on the desks they had at the last run.
 loadSavedDesks()
+
+// The settings in `~/.config/control/config.json`. They may switch the debug log on.
+syncConfig()
 
 refresh()
 app.run()
