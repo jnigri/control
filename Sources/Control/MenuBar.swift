@@ -225,6 +225,7 @@ func drawKey(_ key: String, centeredIn box: CGRect) {
 }
 
 /// A desk shrunk into `box`: an outline per tiled window, filled for the window that covers the desk.
+/// The window with the focus has the brightest outline: the others are a little dimmer.
 /// A desk with no windows is a faint outline of the monitor.
 func drawMap(of desk: Desk, _ area: CGRect, in box: CGRect) {
     let line: CGFloat = 1.2
@@ -247,7 +248,7 @@ func drawMap(of desk: Desk, _ area: CGRect, in box: CGRect) {
         } else {
             let shape = NSBezierPath(roundedRect: tile.insetBy(dx: line / 2, dy: line / 2), xRadius: 1.5, yRadius: 1.5)
             shape.lineWidth = line
-            NSColor.black.setStroke()
+            NSColor.black.withAlphaComponent(window == lastFocus ? 1 : 0.6).setStroke()
             shape.stroke()
         }
     }
