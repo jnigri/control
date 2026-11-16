@@ -6,6 +6,7 @@ import AppKit
 
 final class SettingsWindow: NSObject {
     private(set) var window: NSWindow?
+    private let pointerSwitch = NSSwitch()
     private let logSwitch = NSSwitch()
     private let folder = label("", size: 12, color: Asimov.text, mono: true)
     private let problem = NSTextField(wrappingLabelWithString: "")
@@ -24,6 +25,9 @@ final class SettingsWindow: NSObject {
         let width: CGFloat = 440
         let margin: CGFloat = 20
 
+        pointerSwitch.target = self
+        pointerSwitch.action = #selector(togglePointer)
+        pointerSwitch.controlSize = .small
         logSwitch.target = self
         logSwitch.action = #selector(toggleLog)
         logSwitch.controlSize = .small
@@ -62,14 +66,22 @@ final class SettingsWindow: NSObject {
         path.lineBreakMode = .byTruncatingMiddle
         path.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
+        let pointerSwitchLine = line([name("Move the pointer to the focused window"), space(), pointerSwitch])
+        pointerSwitchLine.edgeInsets.right = 12
+        let pointerNote = note("Switch windows with a key, Command + Tab or the Dock, and the pointer goes to the "
+                               + "middle of the window. Show an empty desk and it goes to the middle of the desk. "
+                               + "A click leaves it where it is.")
         let logSwitchLine = line([name("Write a debug log"), space(), logSwitch])
         logSwitchLine.edgeInsets.right = 12
         let logNote = note("Helps find bugs: what macOS reports, what Control does, where each window is. Apps are named "
                            + "by bundle identifier (com.apple.Safari), never by window title. Stays on this Mac until you export it.")
         let exportButton = TextButton("Export log…", accent: true) { [unowned self] in export() }
-        let titles = [title("DEBUG LOG"), title("SETTINGS FILE")]
+        let titles = [title("POINTER"), title("DEBUG LOG"), title("SETTINGS FILE")]
         let rows: [NSView] = [
             titles[0],
+            Group([pointerSwitchLine]),
+            pointerNote,
+            titles[1],
             Group([
                 logSwitchLine,
                 line([name("Folder"), folder, space(),
@@ -78,7 +90,7 @@ final class SettingsWindow: NSObject {
             ]),
             logNote,
             exportButton,
-            titles[1],
+            titles[2],
             Group([
                 line([path, space(),
                       TextButton("Show") { [unowned self] in showConfig() },
@@ -98,6 +110,7 @@ final class SettingsWindow: NSObject {
         }
         // More room above each title, and around the button that stands alone.
         for title in titles { column.setCustomSpacing(6, after: title) }
+        column.setCustomSpacing(26, after: pointerNote)
         column.setCustomSpacing(14, after: logNote)
         column.setCustomSpacing(26, after: exportButton)
 
@@ -117,12 +130,19 @@ final class SettingsWindow: NSObject {
 
     /// Show the settings in use.
     func update() {
+        pointerSwitch.state = config.centerPointer ? .on : .off
         logSwitch.state = config.log ? .on : .off
         folder.stringValue = config.logFolder
         folder.toolTip = config.logFolder
         problem.stringValue = configError ?? ""
         problem.isHidden = configError == nil
         if let window, let content = window.contentView { window.setContentSize(content.fittingSize) }
+    }
+
+    @objc private func togglePointer() {
+        let on = pointerSwitch.state == .on
+        changeConfig { $0.centerPointer = on }
+        update()
     }
 
     @objc private func toggleLog() {

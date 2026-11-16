@@ -14,25 +14,29 @@ import Testing
 
     @Test func withoutAFileThereIsNothingToLoad() throws {
         #expect(try loadConfig(from: path) == nil)
+        #expect(Config().centerPointer == true)
         #expect(Config().log == false)
         #expect(Config().logFolder == "~/Library/Logs/Control")
     }
 
     @Test func savingThenLoadingGivesTheSameSettings() throws {
         var config = Config()
+        config.centerPointer = false
         config.log = true
         config.logFolder = "~/Desktop/logs"
         try saveConfig(config, to: path)
         #expect(try loadConfig(from: path) == config)
         // Written for people too: one setting per line, paths as they are.
         let text = try String(contentsOfFile: path, encoding: .utf8)
-        #expect(text == "{\n  \"log\" : true,\n  \"logFolder\" : \"~/Desktop/logs\"\n}\n")
+        #expect(text == "{\n  \"centerPointer\" : false,\n  \"log\" : true,\n  \"logFolder\" : \"~/Desktop/logs\"\n}\n")
     }
 
+    /// A file from before a setting existed keeps that setting's default.
     @Test func aMissingKeyKeepsItsDefault() throws {
         try write(#"{"log": true}"#)
         let config = try #require(try loadConfig(from: path))
         #expect(config.log)
+        #expect(config.centerPointer)
         #expect(config.logFolder == Config().logFolder)
         try write("{}")
         #expect(try loadConfig(from: path) == Config())

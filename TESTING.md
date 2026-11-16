@@ -32,6 +32,20 @@ itself when it shows an empty desk.
 - [ ] With windows of one app on desks 1 and 2, close the one on desk 2. Desk 2 stays.
 - [ ] Quit an app whose only window is on the desk you are on. That desk stays.
 
+## Pointer
+
+The tests assume moving the pointer works and does not get in the way of the mouse.
+
+- [ ] Command + Tab to another app. The pointer jumps to the middle of its window, and moves freely right after.
+- [ ] Click a window of another app. The pointer stays where you clicked.
+- [ ] Option + L to a window of another app. The pointer follows.
+- [ ] Option + L to another window of the same app (two terminal windows). The pointer follows.
+- [ ] Show an empty desk. The pointer goes to the middle of the screen.
+- [ ] With the pointer in the left one of two tiles, show a desk with one window. The pointer goes to its middle.
+- [ ] Option + Shift + F, twice. The pointer goes to the middle of the window each time.
+- [ ] Click another app in the Dock. The pointer jumps to its window.
+- [ ] Close a window. The pointer stays where it was.
+
 ## Mouse
 
 The tests assume apps report moves and resizes of their windows while the mouse button is down.

@@ -5,6 +5,8 @@ import Foundation
 // and the settings window writes every change to it.
 
 struct Config: Codable, Equatable {
+    /// Move the pointer to the middle of the window that gets the focus, or of an empty desk.
+    var centerPointer = true
     /// Write the debug log (see `Log.swift`). Off by default: the log says which apps you use.
     var log = false
     var logFolder = "~/Library/Logs/Control"
@@ -14,6 +16,7 @@ struct Config: Codable, Equatable {
     /// A key missing from the file keeps its default.
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        centerPointer = try values.decodeIfPresent(Bool.self, forKey: .centerPointer) ?? centerPointer
         log = try values.decodeIfPresent(Bool.self, forKey: .log) ?? log
         logFolder = try values.decodeIfPresent(String.self, forKey: .logFolder) ?? logFolder
     }

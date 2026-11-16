@@ -14,14 +14,15 @@ func focusedOnDesk() -> (window: Window, desk: Desk)? {
 }
 
 /// Option + desk key: show that desk on the main monitor. The desk of an extra monitor is
-/// on screen already: the focus goes to it.
+/// on screen already: the focus goes to it. An empty desk has no window to focus: the pointer
+/// goes to its middle instead.
 func show(_ key: String) {
     syncMonitors()
     activeDesk = desks[key]!
     if onMonitor(desks[key]!) {
         log("desk", ["did": "focus a monitor's desk", "desk": key])
         arrange()
-        if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) }
+        if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) } else { pointAt(desks[key]!) }
         return
     }
     guard key != current else { return }
@@ -31,7 +32,12 @@ func show(_ key: String) {
     arrange()
     // On an empty desk, no window keeps the focus: the hidden one would swallow a click on its
     // app in the Dock. Picking any app then brings up its desk.
-    if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) } else { mac.unfocus() }
+    if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first {
+        mac.focus(window)
+    } else {
+        mac.unfocus()
+        pointAt(desks[key]!)
+    }
 }
 
 /// Option + Shift + desk key: send the focused window to a desk, and follow it.
@@ -50,6 +56,7 @@ func send(to key: String) {
     }
     arrange()
     mac.focus(window)
+    pointAt(window)
 }
 
 /// Focus a window wherever it is. If its desk is not on screen, that desk comes on screen first.
@@ -159,6 +166,7 @@ func swap(_ direction: Direction) {
     }
     arrange()
     mac.focus(window)
+    pointAt(window)
 }
 
 /// Option + Minus / Equal: move the split next to the focused window.
@@ -178,6 +186,7 @@ func toggleFullscreen() {
     log("desk", tag(window, ["did": desk.fullscreen == nil ? "stop covering" : "cover", "desk": desk.name]))
     arrange()
     mac.focus(window)
+    pointAt(window)
 }
 
 /// Option + Shift + Space: float a tiled window in the middle of its monitor, or tile it again.
@@ -196,6 +205,7 @@ func toggleFloating() {
     }
     arrange()
     mac.focus(window)
+    pointAt(window)
 }
 
 /// The tiled window shown at a point. A window that covers its desk hides the others.

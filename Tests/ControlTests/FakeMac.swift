@@ -36,6 +36,7 @@ final class FakeMac: System {
     var names: [Window: String] = [:]
     var titles: [Window: String] = [:]
     var store: [String: Any] = [:]
+    var pointer = CGPoint(x: 999, y: 819)  // a bottom corner of the main monitor, out of every tile
     var redraws = 0
     var writes = 0
 
@@ -64,6 +65,7 @@ final class FakeMac: System {
     func app(of window: Window) -> String? { bundles[window] }
     func appName(of window: Window) -> String? { names[window] }
     func title(of window: Window) -> String { titles[window] ?? "" }
+    func movePointer(to point: CGPoint) { pointer = point }
     func saved(_ key: String) -> Any? { store[key] }
     func save(_ value: Any, as key: String) { store[key] = value; writes += 1 }
     func changed() { redraws += 1 }
@@ -148,10 +150,19 @@ final class FakeMac: System {
         if !fullScreen.isEmpty { leaveBehind() }
     }
 
+    /// The user clicks at a point, and the window there gets the focus. Control hears about it.
+    func clicks(_ window: Window? = nil, at point: CGPoint) {
+        pointer = point
+        clickedAt = now
+        if let window { focused = window }
+        refresh()
+    }
+
     /// The user drags a window's frame with the mouse and lets go, with the pointer at `pointer`.
     func drags(_ window: Window, to frame: CGRect, pointer: CGPoint? = nil) {
         frames[window] = frame
         focused = window
+        self.pointer = pointer ?? CGPoint(x: frame.midX, y: frame.minY + 10)
         dropped(window, at: pointer ?? CGPoint(x: frame.midX, y: frame.minY + 10))
     }
 }
@@ -184,6 +195,7 @@ func restart(on fake: FakeMac) {
     lastFocus = nil
     activeDesk = nil
     closedAt = .distantPast
+    clickedAt = .distantPast
     logMemory = LogMemory()
     loadSavedDesks()
     refresh()

@@ -77,6 +77,10 @@ func watchEvents() {
     Timer.scheduledTimer(withTimeInterval: snapshotTime, repeats: true) { _ in
         if logMemory.dirty && !paused { logSnapshot("a while since the last one") }
     }
+    // A click gives the focus to the window under the pointer: the pointer stays there.
+    NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { _ in
+        clickedAt = mac.now
+    }
     // The end of a mouse drag: see what the user did with the window.
     NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { _ in
         guard let window = dragged else { return }

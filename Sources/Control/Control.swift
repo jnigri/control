@@ -53,6 +53,11 @@ var lastFocus: Window?
 var closedAt = Date.distantPast
 let closeTime: TimeInterval = 1
 
+/// When the user last pressed a mouse button. A click gives the focus to the window under it:
+/// then the pointer is already where the user wants it.
+var clickedAt = Date.distantPast
+let clickTime: TimeInterval = 1
+
 /// The Mac woke up or the screen unlocked: catch up with what happened meanwhile.
 func resume() {
     catchingUpUntil = mac.now.addingTimeInterval(catchUpTime)
@@ -151,6 +156,33 @@ func refresh() {
         log("focus", lastFocus.map { tag($0, ["desk": desk(of: $0)?.name ?? ""]) } ?? ["w": NSNull()])
     }
     arrange()
+    if !catchingUp { followWithPointer(from: before) }
+}
+
+/// The focus went to another window (Command + Tab, Command + `, the Dock, a key, a new window):
+/// the pointer goes to the middle of that window, now that it is in place. Not after a click on
+/// the window itself, and not when macOS picked the window because another one just closed.
+func followWithPointer(from before: Window?) {
+    guard let window = mac.focusedWindow(), window != before,
+          mac.now.timeIntervalSince(closedAt) >= closeTime else { return }
+    let clicked = mac.now.timeIntervalSince(clickedAt) < clickTime
+    if clicked && mac.frame(of: window).contains(mac.pointer) { return }
+    pointAt(window)
+}
+
+/// The pointer goes to the middle of a window, if its desk is on screen and not under a full screen video.
+/// Only with the setting on (see `Config.swift`).
+func pointAt(_ window: Window) {
+    guard config.centerPointer, let desk = desk(of: window), !isCovered(desk),
+          visibleDesks().contains(where: { $0.desk === desk }) else { return }
+    let frame = mac.frame(of: window)
+    mac.movePointer(to: CGPoint(x: frame.midX, y: frame.midY))
+}
+
+/// The pointer goes to the middle of a desk on screen. For an empty desk, which has no window to focus.
+func pointAt(_ desk: Desk) {
+    guard config.centerPointer, let area = visibleDesks().first(where: { $0.desk === desk })?.area else { return }
+    mac.movePointer(to: CGPoint(x: area.midX, y: area.midY))
 }
 
 /// The user picked a window on a desk out of sight, with Command + Tab, the Dock or Command + `:

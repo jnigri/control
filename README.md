@@ -15,6 +15,7 @@
 - Every window lives on a **desk**. The main monitor shows one desk at a time. Each extra monitor **takes a desk for itself**: the first one desk 0, the next one 9, then 8, down to 2.
 - Pick a window on another desk, with Command + Tab, the Dock or Command + `, and **its desk comes on screen**.
 - Dialogs and fixed-size windows **float**.
+- The **pointer follows**: switch to another window, with a key, Command + Tab or the Dock, and it jumps to the middle of it. A key that moves or resizes the window (full screen, swap, send) takes it along. Show an empty desk and it goes to the middle of that desk. A click leaves it where it is. It can be switched off in the settings.
 - The **mouse** works too: drag an edge and the neighbors follow, drop a window on another to trade places, drop it on another monitor to move it there.
 - An unplugged monitor leaves its desk behind: its key shows it on the main monitor. The monitor **gets it back**, in the same layout, when it returns.
 - A window in macOS's own full screen mode (a video, the green button) is **left alone**, and so is everything behind it.
@@ -92,11 +93,13 @@ Menu bar → the gear opens the settings window. What it shows is kept in `~/.co
 
 ```json
 {
+  "centerPointer" : true,
   "log" : false,
   "logFolder" : "~/Library/Logs/Control"
 }
 ```
 
+- `centerPointer`: the pointer follows the focus (see above). Off, Control never moves the pointer.
 - `log`, `logFolder`: the debug log, below.
 
 The file is the source of truth. Control reads it when it starts. After changing it by hand, click
@@ -164,5 +167,5 @@ What only a real Mac can show is in [TESTING.md](TESTING.md): a short list to go
 - Option + letter no longer types special characters (like Option + E for é).
 - Apps with a minimum size (Finder) can stick out of a small tile.
 - Hidden windows are parked just past a bottom corner of a monitor, with one point left on screen. Control picks a corner with no other monitor behind it, but that one point can show.
-- Option + the key of an empty desk on an extra monitor does nothing: there is no window to give the focus to.
+- Option + the key of an empty desk on an extra monitor only moves the pointer there: there is no window to give the focus to.
 - A window that changes its own size (the green button with Option, a double click on the title bar) keeps that size until the next change.

@@ -44,6 +44,10 @@ protocol System: AnyObject {
     func appName(of window: Window) -> String?
     func title(of window: Window) -> String
 
+    /// Where the mouse pointer is.
+    var pointer: CGPoint { get }
+    func movePointer(to point: CGPoint)
+
     /// Small values kept between runs.
     func saved(_ key: String) -> Any?
     func save(_ value: Any, as key: String)
@@ -171,6 +175,21 @@ final class Mac: System {
     }
 
     func title(of window: Window) -> String { attribute(window, kAXTitleAttribute) as? String ?? "" }
+
+    /// AppKit measures from the bottom-left of the main monitor, so flip y.
+    var pointer: CGPoint {
+        let point = NSEvent.mouseLocation
+        return CGPoint(x: point.x, y: (NSScreen.screens.first?.frame.maxY ?? 0) - point.y)
+    }
+
+    /// Not while a mouse button is down: that would pull a drag out of the user's hand.
+    /// A posted move, unlike `CGWarpMouseCursorPosition`, does not freeze the mouse for a moment
+    /// after, and the app under the pointer hears about it (hover effects, focus follows mouse).
+    func movePointer(to point: CGPoint) {
+        guard NSEvent.pressedMouseButtons == 0 else { return }
+        CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left)?
+            .post(tap: .cghidEventTap)
+    }
 
     func saved(_ key: String) -> Any? { UserDefaults.standard.object(forKey: key) }
     func save(_ value: Any, as key: String) { UserDefaults.standard.set(value, forKey: key) }
