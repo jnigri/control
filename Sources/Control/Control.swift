@@ -175,6 +175,14 @@ func arrange() {
         parkedOn = frames
         for (window, old) in hidden { mac.setPosition(window, parkingSpot(for: old.size, on: frames)) }
     }
+    // A parked window may be back in view all the same: macOS pulls windows back a moment after
+    // monitors change, and an app busy waking up may not take the move. Park it again.
+    for window in hidden.keys {
+        let now = mac.frame(of: window)
+        if frames.contains(where: { now.intersection($0).width * now.intersection($0).height > 1 }) {
+            mac.setPosition(window, parkingSpot(for: now.size, on: frames))
+        }
+    }
 
     let shown = visibleDesks()
     for (desk, area) in shown where !isCovered(desk) {

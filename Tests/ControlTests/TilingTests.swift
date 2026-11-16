@@ -401,4 +401,18 @@ extension ControlTests {
         #expect(desks["2"]!.tiled == [b])
         #expect(fake.frames == before)
     }
+
+    /// macOS may pull a parked window back into view a moment after the Mac woke up, once the
+    /// monitors are back as they were. Before, it stayed in sight, on top of the desk you were on.
+    @Test func aParkedWindowFoundInViewIsParkedAgain() {
+        let a = fake.opens(1)
+        send(to: "2")
+        show("1")
+        let parked = fake.frames[a]!
+        resume()
+        fake.frames[a]!.origin = CGPoint(x: 40, y: 60)
+        refresh()
+        #expect(fake.frames[a] == parked)
+        #expect(desks["2"]!.tiled == [a])
+    }
 }
