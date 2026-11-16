@@ -383,4 +383,22 @@ extension ControlTests {
         #expect(fake.frames[a] == parked)
         #expect(fake.frames[b] == whole)
     }
+
+    /// An app busy waking up gives no answer, long after the others caught up.
+    /// Before, its windows were taken for closed, and came back on the desk you were on.
+    @Test func anAppThatGivesNoAnswerKeepsItsWindowsOnTheirDesks() {
+        let a = fake.opens(1), b = fake.opens(2)
+        send(to: "2")
+        show("1")
+        let before = fake.frames
+        fake.silent = [b]
+        fake.now = fake.now.addingTimeInterval(catchUpTime * 10)
+        refresh()
+        #expect(desks["2"]!.tiled == [b])
+        fake.silent = []
+        refresh()
+        #expect(desks["1"]!.tiled == [a])
+        #expect(desks["2"]!.tiled == [b])
+        #expect(fake.frames == before)
+    }
 }

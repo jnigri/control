@@ -27,6 +27,7 @@ final class FakeMac: System {
     var frames: [Window: CGRect] = [:]
     var focused: Window?
     var unreported: Set<Window> = []      // open, but apps do not list them (another Space, locked screen)
+    var silent: Set<Window> = []          // open, but their app gives no answer (busy, waking up)
     var dialogs: Set<Window> = []         // windows that float
     var fullScreen: Set<Window> = []      // windows in macOS's own full screen mode
     var fullScreenOn: [Window: CGDirectDisplayID] = [:]
@@ -38,7 +39,8 @@ final class FakeMac: System {
     var redraws = 0
     var writes = 0
 
-    func windows() -> [Window] { open.filter { !unreported.contains($0) } }
+    func windows() -> [Window] { open.filter { !unreported.contains($0) && !silent.contains($0) } }
+    var silentApps: Set<pid_t> { Set(silent.map { pid(of: $0) }) }
     func focusedWindow() -> Window? { focused }
     func focus(_ window: Window) { focused = window }
     func unfocus() { focused = nil }

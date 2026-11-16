@@ -95,9 +95,12 @@ func refresh() {
     // Not on a covered monitor: there, apps stop reporting windows that are still open.
     // The same goes for hidden windows, which may be parked in a corner of any monitor,
     // and for every window while apps catch up after a sleep or the lock screen.
+    // An app that gave no answer did not say its windows closed: they stay too.
     let catchingUp = mac.now < catchingUpUntil
+    let silent = mac.silentApps
     for desk in allDesks where !isCovered(desk) && !catchingUp {
-        for window in desk.windows where !live.contains(window) && (covered.isEmpty || hidden[window] == nil) {
+        for window in desk.windows where !live.contains(window) && !silent.contains(pid(of: window))
+            && (covered.isEmpty || hidden[window] == nil) {
             desk.remove(window)
             closedAt = mac.now
         }

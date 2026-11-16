@@ -23,6 +23,8 @@ protocol System: AnyObject {
 
     /// The windows we care about, of every app.
     func windows() -> [Window]
+    /// The apps that gave no answer the last time `windows()` asked. Their windows may still be open.
+    var silentApps: Set<pid_t> { get }
     func focusedWindow() -> Window?
     func focus(_ window: Window)
     /// Take the focus away from every window.
@@ -80,14 +82,26 @@ final class Mac: System {
         return time.tv_sec
     }()
 
+    private(set) var silentApps: Set<pid_t> = []
+
     /// Not minimized, and not the Finder desktop (which has no subrole).
+    /// A busy or sleeping app may not answer in time (after the Mac wakes up, say). That is not
+    /// the same as an app with no windows: it goes in `silentApps`.
     func windows() -> [Window] {
         let apps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
         watchApps(apps)
-        return apps.flatMap { app in
-            let all = attribute(AXUIElementCreateApplication(app.processIdentifier), kAXWindowsAttribute) as? [Window] ?? []
-            return all.filter { window in
-                attribute(window, kAXSubroleAttribute) != nil && attribute(window, kAXMinimizedAttribute) as? Bool != true
+        silentApps = []
+        return apps.flatMap { app -> [Window] in
+            let pid = app.processIdentifier
+            var list: CFTypeRef?
+            let answer = AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid), kAXWindowsAttribute as CFString, &list)
+            if answer == .cannotComplete { silentApps.insert(pid) }
+            return (list as? [Window] ?? []).filter { window in
+                var subrole: CFTypeRef?
+                if AXUIElementCopyAttributeValue(window, kAXSubroleAttribute as CFString, &subrole) == .cannotComplete {
+                    silentApps.insert(pid)
+                }
+                return subrole != nil && attribute(window, kAXMinimizedAttribute) as? Bool != true
             }
         }
     }
