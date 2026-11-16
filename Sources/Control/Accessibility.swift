@@ -138,10 +138,15 @@ final class Mac: System {
         setAttribute(window, kAXPositionAttribute, AXValueCreate(.cgPoint, &point)!)
     }
 
+    /// macOS only lets a window grow as far as the monitor it is on has room. So the size is set
+    /// twice: before the move, in case the window is too big for where it goes, and after it, in
+    /// case it could not grow enough where it was (coming from a smaller monitor, say).
     func setFrame(_ window: Window, _ rect: CGRect) {
         var size = rect.size
+        let value = AXValueCreate(.cgSize, &size)!
+        setAttribute(window, kAXSizeAttribute, value)
         setPosition(window, rect.origin)
-        setAttribute(window, kAXSizeAttribute, AXValueCreate(.cgSize, &size)!)
+        setAttribute(window, kAXSizeAttribute, value)
     }
 
     func shouldFloat(_ window: Window) -> Bool {

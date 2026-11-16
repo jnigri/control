@@ -58,6 +58,8 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 - [ ] Drag a window to it. Drop one on a tile there: it splits that tile.
 - [ ] Drag a dialog to it, then change desk on the main monitor. The dialog stays.
 - [ ] Option + H or L moves the focus across monitors.
+- [ ] With the focus on the main monitor, launch an app that last had its window on the other one. Its window tiles on the main monitor. Same the other way round.
+- [ ] Send a window from one monitor to the other and back, with monitors of different sizes. It fills its tile each time: no gap on any side.
 - [ ] Unplug it. Its windows are out of sight, and Option + 0 shows them on the main monitor.
 - [ ] Plug it back. They are back on it, in the same layout.
 - [ ] Plug in a third monitor. It shows desk 9. Unplug and plug both: each one gets its own desk back.
