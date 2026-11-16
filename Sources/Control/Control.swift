@@ -41,6 +41,10 @@ var paused: Bool { locked || asleep }
 var catchingUpUntil = Date.distantPast
 let catchUpTime: TimeInterval = 10
 
+/// The desk the user is on: the one whose window last had the focus, or the one a key last showed.
+/// New windows open there, wherever their app puts them.
+var activeDesk: Desk?
+
 /// The window that had focus at the last refresh. When it changes, someone picked another window.
 var lastFocus: Window?
 
@@ -86,7 +90,11 @@ func refresh() {
     syncMonitors()
 
     // Remember which window has focus, so the next new window splits it.
-    if let focused = mac.focusedWindow(), let desk = desk(of: focused) { desk.lastFocused = focused }
+    if let focused = mac.focusedWindow(), let desk = desk(of: focused) {
+        desk.lastFocused = focused
+        // Only when the focus moves: after the key of an empty monitor, it stays on the old window.
+        if focused != lastFocus, visibleDesks().contains(where: { $0.desk === desk }) { activeDesk = desk }
+    }
 
     let live = mac.windows()
     covered = coveredMonitors(live)
@@ -148,11 +156,19 @@ func coveredMonitors(_ live: [Window]) -> Set<CGDirectDisplayID> {
 
 func isCovered(_ desk: Desk) -> Bool { monitor(of: desk).map(covered.contains) ?? false }
 
-/// A new window joins the desk it had before Control started, or else the desk of the monitor it appeared on.
+/// A new window joins the desk it had before Control started, or else the desk the user is on.
+/// Not the desk of the monitor it appeared on: apps open windows where they last had one, maybe
+/// on another monitor. Some windows do go by where they are: floating ones, which stay where
+/// their app put them, the ones already open when Control started, and any window while a full
+/// screen video covers the desk the user is on.
 func adopt(_ window: Window) {
     let rect = mac.frame(of: window)
     let center = CGPoint(x: rect.midX, y: rect.midY)
-    let desk = savedDesk(for: window) ?? visibleDesks().first { $0.area.contains(center) }?.desk ?? desks[current]!
+    let shown = visibleDesks()
+    let there = shown.first { $0.area.contains(center) }?.desk
+    let stays = mac.shouldFloat(window) || wasOpenAtStart(window)
+    let here = shown.first { $0.desk === activeDesk && !isCovered($0.desk) }?.desk
+    let desk = savedDesk(for: window) ?? (stays ? there : nil) ?? here ?? there ?? desks[current]!
     if mac.shouldFloat(window) {
         desk.floating.append(window)
         // After a crash of Control the window may still be parked out of sight: bring it back.

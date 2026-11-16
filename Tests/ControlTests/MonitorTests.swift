@@ -66,7 +66,7 @@ extension ControlTests {
     @Test func theKeyOfAMonitorsDeskGivesItTheFocus() {
         fake.screens = [mainMonitor, rightMonitor]
         let x = fake.opens(1, on: rightMonitor)
-        let a = fake.opens(2)
+        let a = fake.opens(2, on: mainMonitor)
         show("0")
         #expect(fake.focused == x)
         #expect(current == "1")
@@ -360,12 +360,38 @@ extension ControlTests {
         #expect(fake.frames == [x: whole, a: whole.applying(onRight)])
     }
 
-    @Test func aNewWindowJoinsTheMonitorItAppearsOn() {
+    /// Apps open a window where they last had one, maybe on another monitor.
+    /// Before, the window joined the desk of that monitor, not the one you were on.
+    @Test func aNewWindowJoinsTheDeskYouAreOnWhereverItAppears() {
         fake.screens = [mainMonitor, rightMonitor]
         let x = fake.opens(1, on: rightMonitor)
-        let a = fake.opens(2)
-        let y = fake.opens(3, on: rightMonitor)
-        #expect(desks["1"]!.tiled == [a])
+        let a = fake.opens(2, on: mainMonitor)
+        let b = fake.opens(3, at: rightMonitor)
+        #expect(desks["1"]!.tiled == [a, b])
+        #expect(monitorDesks[2]!.tiled == [x])
+        #expect(fake.frames == [a: leftHalf, b: rightHalf, x: whole.applying(onRight)])
+        // The focus goes to the other monitor: you are there now.
+        fake.focused = x
+        refresh()
+        let y = fake.opens(4, at: mainMonitor)
         #expect(monitorDesks[2]!.tiled == [x, y])
+        // Its key takes you there too, even with no window on it.
+        fake.closes(x)
+        fake.closes(y)
+        fake.focused = a
+        refresh()
+        show("0")
+        refresh()
+        let z = fake.opens(5, at: mainMonitor)
+        #expect(monitorDesks[2]!.tiled == [z])
+    }
+
+    /// A dialog stays where its app put it, so it belongs to the monitor it is on.
+    @Test func aNewDialogJoinsTheMonitorItAppearsOn() {
+        fake.screens = [mainMonitor, rightMonitor]
+        let a = fake.opens(1, on: mainMonitor)
+        let d = fake.opens(2, at: rightMonitor, dialog: true)
+        #expect(desks["1"]!.windows == [a])
+        #expect(monitorDesks[2]!.floating == [d])
     }
 }

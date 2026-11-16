@@ -71,8 +71,16 @@ final class FakeMac: System {
     // What the user and the apps do.
 
     /// An app opens a window. Like on a real Mac, it takes the focus. Then Control hears about it.
+    /// With `on`, the user went to that monitor first. The app puts the window there too, or on
+    /// the main monitor, unless `at` says where.
     @discardableResult
-    func opens(_ number: Int, on screen: Screen = mainMonitor, dialog: Bool = false, app: String? = nil) -> Window {
+    func opens(_ number: Int, on monitor: Screen? = nil, at place: Screen? = nil, dialog: Bool = false,
+               app: String? = nil) -> Window {
+        if let monitor {
+            syncMonitors()
+            activeDesk = visibleDesks().first { $0.area == monitor.area }?.desk
+        }
+        let screen = place ?? monitor ?? mainMonitor
         let new = window(number)
         open.append(new)
         frames[new] = CGRect(x: screen.area.minX + 300, y: screen.area.minY + 250, width: 400, height: 300)
@@ -171,6 +179,7 @@ func restart(on fake: FakeMac) {
     asleep = false
     catchingUpUntil = .distantPast
     lastFocus = nil
+    activeDesk = nil
     closedAt = .distantPast
     loadSavedDesks()
     refresh()

@@ -30,6 +30,8 @@ func loadSavedDesks() {
     startApps = Set(startWindows.compactMap(mac.app(of:)))
 }
 
+func wasOpenAtStart(_ window: Window) -> Bool { startWindows.contains(window) }
+
 /// The desk a window had before Control started, if it is one of the first windows seen.
 /// The app's desk is only a guess for windows coming back: those open at the start, or from an
 /// app that had none then (it reopens at login). A new window of an app already open is one

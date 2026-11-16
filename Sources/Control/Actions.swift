@@ -17,6 +17,7 @@ func focusedOnDesk() -> (window: Window, desk: Desk)? {
 /// on screen already: the focus goes to it.
 func show(_ key: String) {
     syncMonitors()
+    activeDesk = desks[key]!
     if onMonitor(desks[key]!) {
         arrange()
         if let window = desks[key]!.lastFocused ?? desks[key]!.windows.first { mac.focus(window) }
