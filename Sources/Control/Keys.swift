@@ -37,4 +37,5 @@ private let keyCodes: [String: Int] = [
     "P": kVK_ANSI_P, "Q": kVK_ANSI_Q, "R": kVK_ANSI_R, "S": kVK_ANSI_S, "T": kVK_ANSI_T,
     "U": kVK_ANSI_U, "V": kVK_ANSI_V, "W": kVK_ANSI_W, "X": kVK_ANSI_X, "Y": kVK_ANSI_Y,
     "Z": kVK_ANSI_Z, "Tab": kVK_Tab, "Minus": kVK_ANSI_Minus, "Equal": kVK_ANSI_Equal, "Space": kVK_Space,
+    "Slash": kVK_ANSI_Slash,
 ]

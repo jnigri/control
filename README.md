@@ -20,7 +20,7 @@
 - An unplugged monitor leaves its desk behind: its key shows it on the main monitor. The monitor **gets it back**, in the same layout, when it returns.
 - A window in macOS's own full screen mode (a video, the green button) is **left alone**, and so is everything behind it.
 - Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window.
-- The menu bar shows the current desk and a small map of each monitor: one box per tiled window, filled for a full screen window. Click it to see every desk and its apps.
+- The menu bar shows the current desk and a small map of each monitor: one box per tiled window, filled for a full screen window. Click it, or press Option + Slash, to see every desk and its apps.
 - Scripts can do what the keys do, and more, with the **`control` command**: show a desk, or bring up a window wherever it is.
 
 ## Keys
@@ -35,6 +35,7 @@
 | Option + Minus / Equal    | Shrink / grow                  |
 | Option + Shift + F        | Toggle fullscreen              |
 | Option + Shift + Space    | Toggle floating                |
+| Option + Slash            | Open or close the menu bar panel: every desk and its apps |
 
 Desk keys: 0–9 and every letter except F, H, J, K, L.
 

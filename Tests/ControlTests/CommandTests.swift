@@ -19,13 +19,14 @@ import Testing
         #expect(try Command(["shrink"]) == .shrink)
         #expect(try Command(["fullscreen"]) == .fullscreen)
         #expect(try Command(["float"]) == .float)
+        #expect(try Command(["menu"]) == .menu)
         #expect(try Command(["ls"]) == .list)
         #expect(try Command(["windows"]) == .windows)
     }
 
     @Test func otherWordsAreNotCommands() {
         for words in [[], ["show"], ["show", "F"], ["show", "10"], ["send", "previous"], ["focus", "sideways"],
-                      ["focus", "window", "x"], ["focus", "thing", "x"], ["grow", "a", "lot"], ["ls", "-l"], ["jump"]] {
+                      ["focus", "window", "x"], ["focus", "thing", "x"], ["grow", "a", "lot"], ["ls", "-l"], ["menu", "now"], ["jump"]] {
             #expect(throws: CommandError.self, "\(words)") { try Command(words) }
         }
     }

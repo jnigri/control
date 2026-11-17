@@ -16,7 +16,7 @@ guard AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDi
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
-// The menu bar shows the current desk key. Click it to list the desks.
+// The menu bar shows the current desk key. Click it, or press Option + Slash, to list the desks.
 let menuBar = MenuBar()
 let settingsWindow = SettingsWindow()
 
@@ -34,6 +34,7 @@ bind("Minus", .shrink)
 bind("Equal", .grow)
 bind("F", shift: true, .fullscreen)
 bind("Space", shift: true, .float)
+bind("Slash", .menu)
 listenForKeys()
 
 // The same commands, from the command line.

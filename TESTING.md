@@ -85,6 +85,7 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 ## Settings and the debug log
 
 - [ ] Click the menu bar item. The panel ends with a gear and a power button. Each one lights up under the pointer.
+- [ ] Press Option + Slash. The same panel opens, and the focused app keeps the focus. Press it again: it closes. Open it again and click another app: it closes.
 - [ ] The power button quits Control, and hidden windows come back.
 - [ ] The gear opens the settings window, in front of the other windows. It is not tiled.
 - [ ] Tick "Write a debug log". `~/.config/control/config.json` says `"log" : true`, and `control.log` appears in the folder, starting with a `start` and a `snapshot` line.

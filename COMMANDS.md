@@ -38,6 +38,7 @@ Each command is a few words. Quote a word that has spaces in it: `control focus 
 | `grow`, `shrink`                | Move the split next to the focused window. Option + Equal / Minus.          |
 | `fullscreen`                    | The focused window covers its desk, or stops covering it. Option + Shift + F. |
 | `float`                         | Float the focused window, or tile it again. Option + Shift + Space.         |
+| `menu`                          | Open the menu bar panel, with every desk and its apps, or close it. Option + Slash. |
 | `ls`                            | The desks in use and their windows, for people.                             |
 | `windows`                       | Every window, one per line, for scripts.                                    |
 | `export [folder]`               | Zip the debug log, to send with a bug report: on the Desktop, or in a folder. Prints the path of the zip. Works with the screen locked. See the README, "Debug log". |

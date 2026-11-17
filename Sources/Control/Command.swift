@@ -13,6 +13,7 @@ enum Command: Equatable {
     case swap(Direction)
     case grow, shrink
     case fullscreen, float
+    case menu                    // open the menu bar panel, or close it
     case list                    // desks and their windows, for people
     case windows                 // every window, for scripts
     case export(String?)         // the debug log, zipped into a folder (the Desktop when nil)
@@ -44,6 +45,7 @@ let usage = """
       grow, shrink            move the split next to the focused window
       fullscreen              the focused window covers its desk, or stops covering it
       float                   float the focused window, or tile it again
+      menu                    open the menu bar panel with the desks and their apps, or close it
       ls                      list the desks in use and their windows: number, app, title
       windows                 the same for scripts, one line per window, tab-separated:
                               number, desk, shown or hidden, app, title
@@ -66,7 +68,7 @@ extension Command {
         let rest = Array(words.dropFirst())
         let unknown = CommandError("unknown command \"\(words.joined(separator: " "))\"")
         let alone: [String: Command] = ["grow": .grow, "shrink": .shrink, "fullscreen": .fullscreen, "float": .float,
-                                        "ls": .list, "windows": .windows]
+                                        "menu": .menu, "ls": .list, "windows": .windows]
         switch (verb, rest.count) {
         case ("show", 1): self = rest[0] == "previous" ? .showPrevious : .show(try desk(rest[0]))
         case ("send", 1): self = .send(try desk(rest[0]))
@@ -121,6 +123,7 @@ extension Command {
         case .shrink: resize(by: -resizeStep)
         case .fullscreen: toggleFullscreen()
         case .float: toggleFloating()
+        case .menu: menuBar.toggle()
         case .list: return listing()
         case .windows: return windowList()
         case .export: break
@@ -144,6 +147,7 @@ extension Command {
         case .shrink: "shrink"
         case .fullscreen: "fullscreen"
         case .float: "float"
+        case .menu: "menu"
         case .export: "export"
         case .list, .windows: nil
         }
