@@ -267,7 +267,7 @@ func arrange() {
     // monitors change, and an app busy waking up may not take the move. Park it again.
     for window in hidden.keys {
         let now = mac.frame(of: window)
-        if frames.contains(where: { now.intersection($0).width * now.intersection($0).height > 1 }) {
+        if frames.contains(where: { inView(now, on: $0) }) {
             log("repark", tag(window, ["why": "back in view", "found": box(now),
                                        "to": spot(parkingSpot(for: now.size, on: frames))]))
             mac.setPosition(window, parkingSpot(for: now.size, on: frames))
@@ -333,6 +333,15 @@ func hide(_ window: Window) {
     hidden[window] = old
     log("park", tag(window, ["from": box(old), "to": spot(parkingSpot(for: old.size, on: mac.screens.map(\.frame)))]))
     mac.setPosition(window, parkingSpot(for: old.size, on: mac.screens.map(\.frame)))
+}
+
+/// Whether a window shows on a monitor. A parked window keeps a sliver 1 point wide in view, and
+/// macOS pulls it up until its top 30 points or so show: still a sliver 1 point wide, so out of view.
+/// Taking that sliver for a window in view parked it again at every refresh, and macOS pulled it
+/// back up each time.
+func inView(_ frame: CGRect, on screen: CGRect) -> Bool {
+    let seen = frame.intersection(screen)
+    return seen.width > 1 && seen.height > 1
 }
 
 /// Where to park a window of this size: just past a bottom corner of a monitor, with 1 point

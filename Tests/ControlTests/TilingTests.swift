@@ -402,6 +402,20 @@ extension ControlTests {
         #expect(fake.frames == before)
     }
 
+    /// macOS does not leave a window with 1 point on screen: it pulls it up until its title bar shows.
+    /// Before, Control took that for a window back in view and parked it again at every refresh.
+    @Test func aParkedWindowPulledUpByMacOSStaysWhereItIs() {
+        let a = fake.opens(1)
+        send(to: "2")
+        show("1")
+        let parked = fake.frames[a]!
+        let pulled = CGPoint(x: parked.minX, y: mainMonitor.frame.maxY - 32)
+        fake.frames[a]!.origin = pulled
+        refresh()
+        #expect(fake.frames[a]!.origin == pulled)
+        #expect(desks["2"]!.tiled == [a])
+    }
+
     /// macOS may pull a parked window back into view a moment after the Mac woke up, once the
     /// monitors are back as they were. Before, it stayed in sight, on top of the desk you were on.
     @Test func aParkedWindowFoundInViewIsParkedAgain() {
