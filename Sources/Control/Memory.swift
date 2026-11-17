@@ -34,6 +34,7 @@ func loadSavedDesks() {
     let monitors = mac.saved("monitors") as? [String: String] ?? [:]
     monitorKeys = Dictionary(uniqueKeysWithValues: monitors.compactMap { id, key in CGDirectDisplayID(id).map { ($0, key) } })
     gone = [:]
+    loadHistory()
     startWindows = Set(mac.windows())
     startApps = Set(startWindows.compactMap(mac.app(of:)))
 }

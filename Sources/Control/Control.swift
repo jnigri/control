@@ -135,8 +135,6 @@ func refresh() {
             if let why { kept[window] = why } else { leaving.append((window, desk)) }
         }
     }
-    // Several windows at once is rarely the user closing them: keep the layout they leave behind.
-    if leaving.count > 1 { saveLayout("before \(leaving.count) windows went missing") }
     for (window, desk) in leaving {
         let minimized = mac.isMinimized(window)
         log("gone", tag(window, ["desk": desk.name, "minimized": minimized]))
@@ -301,6 +299,7 @@ func arrange() {
     }
     mac.changed()
     saveDesks()
+    noteLayout()
     logLayout()
 }
 

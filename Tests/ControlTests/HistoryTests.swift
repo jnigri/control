@@ -2,23 +2,60 @@ import Foundation
 import Testing
 @testable import Control
 
-// Going back to a layout from the history.
+// The history of layouts, and going back to one.
 
 extension ControlTests {
-    /// Windows get packed on one desk somehow. The layout kept before puts each back on its desk,
-    /// in its place, with the splits as they were.
+    /// Time passes: the layout on screen is one you had on purpose.
+    func settle() { fake.now += settleTime }
+
+    /// Each change keeps the layout it replaces, if it stayed long enough.
+    @Test func eachChangeKeepsTheLayoutBefore() {
+        fake.opens(1)
+        settle()
+        fake.opens(2)
+        settle()
+        send(to: "2")
+        #expect(history.count == 2)
+        #expect(history[0].shape.desks["1"]?.tree == .split(.window(1), .window(2), 0.5))
+        #expect(history[1].shape.desks["1"]?.tree == .window(1))
+    }
+
+    /// The layouts on the way to another one, a moment apart, are not kept.
+    @Test func layoutsReplacedRightAwayAreNotKept() {
+        fake.opens(1)
+        settle()
+        fake.opens(2)
+        fake.opens(3)
+        fake.opens(4)
+        settle()
+        send(to: "2")
+        #expect(history.map(\.shape.windowCount) == [4, 1])
+    }
+
+    /// Showing another desk changes nothing worth keeping.
+    @Test func showingADeskKeepsNothing() {
+        fake.opens(1)
+        settle()
+        show("2")
+        settle()
+        show("1")
+        #expect(history.isEmpty)
+    }
+
+    /// Windows get packed on one desk somehow. The layout before puts each back on its desk, in its
+    /// place. The desk on screen stays.
     @Test func goingBackPutsEveryWindowWhereItWas() {
         let a = fake.opens(1), b = fake.opens(2), c = fake.opens(3)
         fake.focus(c)
         send(to: "2")
         show("1")
         let before = fake.frames
-        saveLayout("before the screen locked")
+        settle()
         show("2")
         send(to: "1")                   // c is back on desk 1, beside b
         #expect(desks["1"]!.tiled == [a, b, c])
 
-        restore(history.last!)
+        restore(history[0])
         #expect(desks["1"]!.tiled == [a, b])
         #expect(desks["2"]!.tiled == [c])
         #expect(current == "1")
@@ -33,7 +70,7 @@ extension ControlTests {
         resize(by: 0.2)
         toggleFullscreen()
         let before = fake.frames
-        saveLayout("test")
+        settle()
         toggleFullscreen()
         resize(by: -0.3)
         restore(history.last!)
@@ -45,7 +82,7 @@ extension ControlTests {
     /// A window closed since is left out. One opened since stays on its desk, after the others.
     @Test func goingBackLeavesOutClosedWindowsAndKeepsNewOnes() {
         let a = fake.opens(1), b = fake.opens(2), c = fake.opens(3)
-        saveLayout("test")
+        settle()
         fake.focus(a)
         send(to: "2")
         fake.closes(b)
@@ -55,7 +92,9 @@ extension ControlTests {
         #expect(desks["1"]!.tiled == [a, c])
         #expect(desks["2"]!.tiled.isEmpty)
         #expect(desks["3"]!.tiled == [d])
-        #expect(current == "1")
+        #expect(current == "3")
+        #expect(fake.frames[d] == whole)
+        show("1")
         #expect(fake.frames[a] == leftHalf)
         #expect(fake.frames[c] == rightHalf)
     }
@@ -64,56 +103,51 @@ extension ControlTests {
         fake.opens(1)
         let dialog = fake.opens(2, dialog: true)
         let frame = fake.frames[dialog]!
-        saveLayout("test")
+        settle()
         fake.frames[dialog] = rect(10, 30, 200, 100)
         send(to: "2")
-        restore(history.last!)
+        restore(history[0])
         #expect(desks["1"]!.floating == [dialog])
+        show("1")
         #expect(fake.frames[dialog] == frame)
     }
 
-    /// Going back keeps the layout just before, so it can be undone.
+    /// Going back keeps the layout just before, however short, so it can be undone.
     @Test func goingBackCanBeUndone() {
         let a = fake.opens(1), b = fake.opens(2)
-        saveLayout("test")
+        settle()
         send(to: "2")
         let before = fake.frames
-        restore(history.last!)
-        #expect(history.first!.why.hasPrefix("before going back"))
-        restore(history.first!)
+        restore(history[0])
+        #expect(history[0].why.hasPrefix("before going back"))
+        restore(history[0])
         #expect(desks["1"]!.tiled == [a])
         #expect(desks["2"]!.tiled == [b])
         #expect(current == "2")
         #expect(fake.frames == before)
     }
 
-    @Test func theSameLayoutIsKeptOnceAndOnlyTheLastTen() {
+    @Test func onlyTheLastTenAreKept() {
         fake.opens(1)
-        saveLayout("one")
-        saveLayout("two")
-        #expect(history.map(\.why) == ["one"])
         for key in deskKeys.prefix(12) {
+            settle()
             send(to: key)
-            saveLayout(key)
         }
         #expect(history.count == historyLimit)
-        #expect(history.first!.why == deskKeys[11])
+        #expect(history[0].shape.desks.keys.first == deskKeys[10])
     }
 
-    @Test func nothingIsKeptWithoutWindows() {
-        saveLayout("empty")
+    /// The history lasts across restarts of Control, but not across a reboot.
+    @Test func theHistoryLastsUntilAReboot() {
+        fake.opens(1)
+        settle()
+        fake.opens(2)
+        restart(on: fake)
+        #expect(history.count == 1)
+        let rebooted = FakeMac()
+        rebooted.store = fake.store
+        rebooted.bootTime = 2
+        restart(on: rebooted)
         #expect(history.isEmpty)
-    }
-
-    /// Several windows going missing at once is rarely the user closing them: the layout they
-    /// leave is kept. One window closing is.
-    @Test func severalWindowsGoingMissingKeepTheLayout() {
-        let a = fake.opens(1), b = fake.opens(2), c = fake.opens(3)
-        fake.closes(c)
-        #expect(history.isEmpty)
-        fake.unreported = [a, b]
-        refresh()
-        #expect(history.first?.why == "before 2 windows went missing")
-        #expect(history.first?.shape.windowCount == 2)
     }
 }

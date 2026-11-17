@@ -74,23 +74,24 @@ final class MenuBar: NSObject {
                 show(key)
             })
         }
-        // The layouts to go back to, newest first.
-        if !history.isEmpty {
-            rows.append(separator())
-            rows.append(Row([label("LAYOUTS", size: 10, color: Asimov.muted, mono: true)]))
-            for layout in history {
-                let time = label(clock(layout.at), size: 12, color: Asimov.text, mono: true)
-                let why = label(layout.why, size: 12, color: Asimov.muted)
-                let count = label("\(layout.shape.windowCount)", size: 11, color: Asimov.muted, mono: true)
-                count.toolTip = "windows"
-                let space = NSView()
-                space.setContentHuggingPriority(.defaultLow, for: .horizontal)
-                rows.append(Row([time, why, space, count]) { [unowned self] in
-                    close()
-                    guard !paused else { return }
-                    restore(layout)
-                })
-            }
+        // The layouts to go back to, newest first, each with the time it was replaced.
+        rows.append(separator())
+        rows.append(Row([label("GO BACK TO", size: 10, color: Asimov.muted, mono: true)]))
+        if history.isEmpty {
+            rows.append(Row([label("the layout before your next change", size: 12, color: Asimov.muted)]))
+        }
+        for layout in history {
+            let time = label(clock(layout.at), size: 12, color: Asimov.text, mono: true)
+            time.toolTip = "on screen from \(clock(layout.since)) to \(clock(layout.at))"
+            let windows = layout.shape.windowCount, deskCount = layout.shape.desks.count
+            let what = layout.why.isEmpty
+                ? "\(windows) window\(windows == 1 ? "" : "s") on \(deskCount) desk\(deskCount == 1 ? "" : "s")"
+                : layout.why
+            rows.append(Row([time, label(what, size: 12, color: Asimov.muted)]) { [unowned self] in
+                close()
+                guard !paused else { return }
+                restore(layout)
+            })
         }
         rows.append(separator())
         let space = NSView()

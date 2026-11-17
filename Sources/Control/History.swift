@@ -1,29 +1,29 @@
 import Foundation
 import CoreGraphics
 
-// Layouts to go back to. Control keeps a copy of the layout before anything that may undo it: the
-// screen locking, the Mac sleeping, monitors changing, several windows going missing at once, and
-// every few minutes. The menu bar panel lists them: click one to put every window back where it was.
-// Windows are kept by number, which lasts as long as the window. They are kept in memory only.
+// Layouts to go back to. Each time the layout changes (a window opens, closes, moves to another desk,
+// trades places, a split moves), the layout it replaces goes into the history, if it stayed long
+// enough to be one you had on purpose: the in-between layouts of a burst of changes are left out.
+// The menu bar panel lists them: click one to put every window back where it was.
+// Windows are kept by number, which lasts as long as the window, so the history lasts across
+// restarts of Control but not across a reboot.
 
 /// A desk's layout tree, by window number.
-indirect enum Tree: Equatable {
+indirect enum Tree: Equatable, Codable {
     case window(CGWindowID)
     case split(Tree, Tree, CGFloat)
 }
 
 /// What a desk held.
-struct DeskShape: Equatable {
+struct DeskShape: Equatable, Codable {
     var tree: Tree?
     var floating: [CGWindowID] = []
     var fullscreen: CGWindowID?
 }
 
-/// Which window is where, without the frames. Two layouts with the same shape are the same layout.
-struct Shape: Equatable {
+/// Which window is on which desk, and where, without the frames.
+struct Shape: Codable {
     var desks: [String: DeskShape] = [:]
-    var current = ""
-    var previous = ""
 
     var windowCount: Int {
         desks.values.reduce(0) { count, desk in count + desk.floating.count + (desk.tree.map(leafCount) ?? 0) }
@@ -37,32 +37,37 @@ private func leafCount(_ tree: Tree) -> Int {
     }
 }
 
-struct SavedLayout {
-    let at: Date
-    /// What was about to happen, like "before the screen locked".
-    let why: String
-    let shape: Shape
+struct SavedLayout: Codable {
+    /// When the layout was put in place, and when it was replaced (or now, for the one on screen).
+    var since: Date
+    var at: Date
+    /// Why it was kept, when it is not just a change, like "before going back to 21:23".
+    var why = ""
+    var shape: Shape
     /// Where each floating window was, out of sight or not.
-    let frames: [CGWindowID: CGRect]
+    var frames: [CGWindowID: CGRect]
     /// The window each desk focuses when it is shown.
-    let focused: [String: CGWindowID]
+    var focused: [String: CGWindowID]
 }
 
 /// The layouts to go back to, newest first.
 var history: [SavedLayout] = []
 let historyLimit = 10
-/// How often the layout is kept anyway, when it changed meanwhile.
-let historyTime: TimeInterval = 600
+/// A layout replaced sooner than this was on the way to another one: it is not kept.
+let settleTime: TimeInterval = 5
+
+/// The layout on screen, kept up to date at every change, with the time it was put in place.
+private var settled: SavedLayout?
 
 /// The layout right now.
-func currentLayout(_ why: String) -> SavedLayout {
+func currentLayout() -> SavedLayout {
     func tree(_ node: Node) -> Tree? {
         if let window = node.window { return mac.number(of: window).map(Tree.window) }
         let first = tree(node.first!), second = tree(node.second!)
         guard let first, let second else { return first ?? second }
         return .split(first, second, node.ratio)
     }
-    var shape = Shape(current: current, previous: previous)
+    var shape = Shape()
     var frames: [CGWindowID: CGRect] = [:]
     var focused: [String: CGWindowID] = [:]
     for desk in allDesks where !desk.windows.isEmpty {
@@ -75,23 +80,64 @@ func currentLayout(_ why: String) -> SavedLayout {
         shape.desks[desk.name] = saved
         if let number = desk.lastFocused.flatMap(mac.number(of:)) { focused[desk.name] = number }
     }
-    return SavedLayout(at: mac.now, why: why, shape: shape, frames: frames, focused: focused)
+    return SavedLayout(since: mac.now, at: mac.now, shape: shape, frames: frames, focused: focused)
 }
 
-/// Keep the layout as it is now, unless it is the one kept last.
-func saveLayout(_ why: String) {
-    let layout = currentLayout(why)
-    guard layout.shape.windowCount > 0, layout.shape != history.first?.shape else { return }
+/// After every arrange: when the layout changed, the one it replaced goes into the history,
+/// if it stayed long enough.
+func noteLayout() {
+    var now = currentLayout()
+    guard var last = settled else { settled = now; return }
+    if now.shape.desks == last.shape.desks {
+        // Same layout: keep when it started, take the rest (floating frames, focus) as it is now.
+        now.since = last.since
+        settled = now
+        return
+    }
+    if mac.now.timeIntervalSince(last.since) >= settleTime {
+        last.at = mac.now
+        keep(last)
+    }
+    settled = now
+}
+
+/// Put a layout at the top of the history, unless it is the one there already.
+func keep(_ layout: SavedLayout) {
+    guard layout.shape.windowCount > 0, layout.shape.desks != history.first?.shape.desks else { return }
     history.insert(layout, at: 0)
     if history.count > historyLimit { history.removeLast(history.count - historyLimit) }
-    log("layout-saved", ["why": why, "windows": layout.shape.windowCount, "kept": history.count])
+    log("layout-kept", ["windows": layout.shape.windowCount, "desks": layout.shape.desks.count,
+                        "lasted": Int(layout.at.timeIntervalSince(layout.since)), "kept": history.count])
+    if let data = try? JSONEncoder().encode(StoredHistory(boot: mac.bootTime, layouts: history)) {
+        mac.save(data, as: "history")
+    }
+}
+
+/// The history as kept between runs. Window numbers only mean something within the same boot.
+private struct StoredHistory: Codable {
+    let boot: Int
+    let layouts: [SavedLayout]
+}
+
+/// Read the history the last run kept. Call once, before the first refresh.
+func loadHistory() {
+    settled = nil
+    history = []
+    guard let data = mac.saved("history") as? Data,
+          let stored = try? JSONDecoder().decode(StoredHistory.self, from: data), stored.boot == mac.bootTime else { return }
+    history = stored.layouts
 }
 
 /// Put every window back where a saved layout had it. Windows that closed since are left out.
 /// Windows opened since stay on the desk they are on, after the others. The layout just before
 /// is kept too, so a restore can be undone.
 func restore(_ layout: SavedLayout) {
-    saveLayout("before going back to \(clock(layout.at))")
+    var now = settled ?? currentLayout()
+    now.at = mac.now
+    now.why = "before going back to \(clock(layout.at))"
+    keep(now)
+    // The layout put back is a new start, not a change to keep.
+    settled = nil
     var windows: [CGWindowID: Window] = [:]
     var opened: [(window: Window, desk: Desk, floating: Bool)] = []
     let saved = Set(layout.shape.desks.values.flatMap { numbers(in: $0) })
@@ -137,10 +183,7 @@ func restore(_ layout: SavedLayout) {
         guard let window = windows[number] else { continue }
         if hidden[window] != nil { hidden[window] = frame } else { mac.setFrame(window, frame) }
     }
-    // The desk on the main monitor, unless an extra monitor shows it now.
-    if !onMonitor(desks[layout.shape.current]!) { current = layout.shape.current }
-    if !onMonitor(desks[layout.shape.previous]!) { previous = layout.shape.previous }
-    activeDesk = desks[current]
+    // The desk on screen stays: its windows change.
     arrange()
     if let window = desks[current]!.lastFocused ?? desks[current]!.windows.first { mac.focus(window) }
 }

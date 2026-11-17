@@ -43,7 +43,6 @@ func watchEvents() {
     NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                            object: nil, queue: .main) { _ in
         log("monitors-changed")
-        if !paused { saveLayout("before monitors changed") }
         logMonitors()
         changed()
         // macOS moves windows about for a moment after: see where they ended up.
@@ -53,7 +52,6 @@ func watchEvents() {
     for (name, heard) in [(NSWorkspace.willSleepNotification, "willSleep"),
                           (NSWorkspace.screensDidSleepNotification, "screensDidSleep")] {
         workspace.addObserver(forName: name, object: nil, queue: .main) { _ in
-            if !paused { saveLayout("before the Mac slept") }
             asleep = true
             log("sleep", ["heard": heard, "locked": locked])
         }
@@ -68,7 +66,6 @@ func watchEvents() {
     }
     let distributed = DistributedNotificationCenter.default()
     distributed.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
-        if !paused { saveLayout("before the screen locked") }
         locked = true
         log("lock", ["asleep": asleep])
     }
@@ -79,9 +76,6 @@ func watchEvents() {
     }
     Timer.scheduledTimer(withTimeInterval: snapshotTime, repeats: true) { _ in
         if logMemory.dirty && !paused { logSnapshot("a while since the last one") }
-    }
-    Timer.scheduledTimer(withTimeInterval: historyTime, repeats: true) { _ in
-        if !paused { saveLayout("kept every \(Int(historyTime / 60)) minutes") }
     }
     // A click gives the focus to the window under the pointer: the pointer stays there.
     NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { _ in

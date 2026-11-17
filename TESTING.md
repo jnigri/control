@@ -66,10 +66,14 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 
 ## Layouts
 
-- [ ] Lock the screen and unlock it. The menu bar panel lists a layout "before the screen locked".
-- [ ] Send a few windows to other desks, then pick that layout in the panel. Every window goes back to its desk and its place.
+- [ ] Right after a reboot, the panel's "Go back to" part says what it will hold.
+- [ ] Wait 5 seconds, send a window to another desk. The panel lists the layout before, with the time and how many windows and desks it had.
+- [ ] Send three windows away within a second or two. Only the layout before the first one is listed.
+- [ ] Switching desks lists nothing.
+- [ ] Pick the layout: every window goes back to its desk and its place, and the desk on screen stays.
 - [ ] The panel now lists "before going back to …" first. Pick it: the windows go back to where you had sent them.
 - [ ] Close a window, open another, then go back to an older layout. The closed one is left out, the new one stays on its desk.
+- [ ] Quit Control and open it again. The list is still there.
 
 ## A second monitor
 
