@@ -28,6 +28,7 @@ final class FakeMac: System {
     var focused: Window?
     var unreported: Set<Window> = []      // open, but apps do not list them (another Space, locked screen)
     var silent: Set<Window> = []          // open, but their app gives no answer (busy, waking up)
+    var minimized: Set<Window> = []       // in the Dock
     var dialogs: Set<Window> = []         // windows that float
     var fullScreen: Set<Window> = []      // windows in macOS's own full screen mode
     var fullScreenOn: [Window: CGDirectDisplayID] = [:]
@@ -40,7 +41,9 @@ final class FakeMac: System {
     var redraws = 0
     var writes = 0
 
-    func windows() -> [Window] { open.filter { !unreported.contains($0) && !silent.contains($0) } }
+    func windows() -> [Window] {
+        open.filter { !unreported.contains($0) && !silent.contains($0) && !minimized.contains($0) }
+    }
     var silentApps: Set<pid_t> { Set(silent.map { pid(of: $0) }) }
     func focusedWindow() -> Window? { focused }
     func focus(_ window: Window) { focused = window }
@@ -61,6 +64,7 @@ final class FakeMac: System {
 
     func shouldFloat(_ window: Window) -> Bool { dialogs.contains(window) }
     func isFullScreen(_ window: Window) -> Bool { fullScreen.contains(window) }
+    func isMinimized(_ window: Window) -> Bool { minimized.contains(window) }
     func number(of window: Window) -> CGWindowID? { CGWindowID(pid(of: window)) }
     func app(of window: Window) -> String? { bundles[window] }
     func appName(of window: Window) -> String? { names[window] }

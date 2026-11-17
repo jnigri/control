@@ -16,6 +16,13 @@ private var apps: [String: String] = [:]         // kept for apps that are not r
 private var startWindows: Set<Window> = []       // the windows open when Control started
 private var startApps: Set<String> = []          // the apps those windows belong to
 
+/// Windows that left their desk without being minimized, by window number: the desk and when.
+/// Most really closed. But an app slow to wake up may answer that it has no windows at all, long
+/// after the others caught up. Before, its windows then came back as new ones, all on the desk you
+/// were on. Window numbers are not reused within a boot, so the same number is the same window.
+private var gone: [CGWindowID: (desk: String, at: Date)] = [:]
+private let goneTime: TimeInterval = 3600
+
 /// Read what the last run saved. Call once, before the first refresh.
 func loadSavedDesks() {
     started = mac.now
@@ -26,6 +33,7 @@ func loadSavedDesks() {
     apps = oldApps
     let monitors = mac.saved("monitors") as? [String: String] ?? [:]
     monitorKeys = Dictionary(uniqueKeysWithValues: monitors.compactMap { id, key in CGDirectDisplayID(id).map { ($0, key) } })
+    gone = [:]
     startWindows = Set(mac.windows())
     startApps = Set(startWindows.compactMap(mac.app(of:)))
 }
@@ -43,6 +51,20 @@ func savedDesk(for window: Window) -> Desk? {
         name = oldApps[app]
     }
     return name.flatMap { desks[$0] }
+}
+
+/// A window left its desk, maybe for a moment only.
+func rememberGone(_ window: Window, from desk: Desk) {
+    gone = gone.filter { mac.now.timeIntervalSince($0.value.at) < goneTime }
+    guard let number = mac.number(of: window) else { return }
+    gone[number] = (desk.name, mac.now)
+}
+
+/// The desk a window was on when it went missing, if it is one of those coming back.
+func goneDesk(for window: Window) -> Desk? {
+    guard let number = mac.number(of: window), let was = gone.removeValue(forKey: number),
+          mac.now.timeIntervalSince(was.at) < goneTime else { return nil }
+    return desks[was.desk]
 }
 
 /// Note the desk of every window, and of each app's oldest window (the lowest number).

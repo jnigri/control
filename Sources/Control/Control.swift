@@ -135,7 +135,9 @@ func refresh() {
                 kept[window] = why
                 continue
             }
-            log("gone", tag(window, ["desk": desk.name]))
+            let minimized = mac.isMinimized(window)
+            log("gone", tag(window, ["desk": desk.name, "minimized": minimized]))
+            if !minimized { rememberGone(window, from: desk) }
             desk.remove(window)
             closedAt = mac.now
         }
@@ -217,7 +219,8 @@ func coveredMonitors(_ live: [Window]) -> Set<CGDirectDisplayID> {
 
 func isCovered(_ desk: Desk) -> Bool { monitor(of: desk).map(covered.contains) ?? false }
 
-/// A new window joins the desk it had before Control started, or else the desk the user is on.
+/// A new window joins the desk it had before Control started, or the desk it had when it went
+/// missing a moment ago, or else the desk the user is on.
 /// Not the desk of the monitor it appeared on: apps open windows where they last had one, maybe
 /// on another monitor. Some windows do go by where they are: floating ones, which stay where
 /// their app put them, the ones already open when Control started, and any window while a full
@@ -230,11 +233,12 @@ func adopt(_ window: Window) {
     let floats = mac.shouldFloat(window)
     let stays = floats || wasOpenAtStart(window)
     let here = shown.first { $0.desk === activeDesk && !isCovered($0.desk) }?.desk
-    let saved = savedDesk(for: window)
+    let back = goneDesk(for: window)
+    let saved = back ?? savedDesk(for: window)
     let desk = saved ?? (stays ? there : nil) ?? here ?? there ?? desks[current]!
     log("adopt", tag(window, [
         "desk": desk.name, "frame": box(rect), "floating": floats,
-        "rule": saved != nil ? "saved" : stays && there != nil ? "stays where it is"
+        "rule": back != nil ? "came back" : saved != nil ? "saved" : stays && there != nil ? "stays where it is"
             : here != nil ? "active desk" : there != nil ? "monitor under it" : "current",
     ]))
     if floats {

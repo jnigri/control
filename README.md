@@ -19,7 +19,7 @@
 - The **mouse** works too: drag an edge and the neighbors follow, drop a window on another to trade places, drop it on another monitor to move it there.
 - An unplugged monitor leaves its desk behind: its key shows it on the main monitor. The monitor **gets it back**, in the same layout, when it returns.
 - A window in macOS's own full screen mode (a video, the green button) is **left alone**, and so is everything behind it.
-- Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window.
+- Windows **go back to their desk** when Control restarts. After a reboot, each app's windows go to the desk of its oldest window. A window that an app lost track of for a while, after the Mac woke up, goes back to its desk too.
 - The menu bar shows the current desk and a small map of each monitor: one box per tiled window, filled for a full screen window. Click it, or press Option + Slash, to see every desk and its apps.
 - Scripts can do what the keys do, and more, with the **`control` command**: show a desk, or bring up a window wherever it is.
 

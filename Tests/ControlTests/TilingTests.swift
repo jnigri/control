@@ -402,6 +402,46 @@ extension ControlTests {
         #expect(fake.frames == before)
     }
 
+    /// An app slow to wake up answers that it has no windows, long after the others caught up.
+    /// Before, its windows were taken for closed, and all came back on the desk you were on.
+    @Test func windowsMissingForAWhileAfterWakingUpGoBackToTheirDesks() {
+        let a = fake.opens(1), b = fake.opens(2)
+        send(to: "2")
+        show("1")
+        let c = fake.opens(3)
+        send(to: "3")
+        show("1")
+        let before = fake.frames
+        locked = true
+        locked = false
+        resume()
+        fake.unreported = [b, c]
+        fake.now = fake.now.addingTimeInterval(catchUpTime + 1)
+        refresh()
+        #expect(desks["2"]!.tiled.isEmpty)
+        fake.now = fake.now.addingTimeInterval(20)
+        fake.unreported = []
+        refresh()
+        #expect(desks["1"]!.tiled == [a])
+        #expect(desks["2"]!.tiled == [b])
+        #expect(desks["3"]!.tiled == [c])
+        #expect(fake.frames[a] == whole)
+        #expect(fake.frames[b] == before[b])
+    }
+
+    /// A window brought back from the Dock is one you picked: it opens on the desk you are on.
+    @Test func aWindowBackFromTheDockOpensOnTheDeskYouAreOn() {
+        let a = fake.opens(1)
+        send(to: "2")
+        show("1")
+        fake.minimized = [a]
+        refresh()
+        show("4")
+        fake.minimized = []
+        refresh()
+        #expect(desks["4"]!.tiled == [a])
+    }
+
     /// macOS does not leave a window with 1 point on screen: it pulls it up until its title bar shows.
     /// Before, Control took that for a window back in view and parked it again at every refresh.
     @Test func aParkedWindowPulledUpByMacOSStaysWhereItIs() {

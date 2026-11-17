@@ -36,6 +36,8 @@ protocol System: AnyObject {
     func shouldFloat(_ window: Window) -> Bool
     /// Whether a window is in macOS's own full screen mode (the green button), on a Space of its own.
     func isFullScreen(_ window: Window) -> Bool
+    /// Whether a window is minimized to the Dock.
+    func isMinimized(_ window: Window) -> Bool
     /// The window server's number for a window. It lasts as long as the window.
     func number(of window: Window) -> CGWindowID?
     /// The bundle identifier of the app that owns a window.
@@ -160,6 +162,8 @@ final class Mac: System {
     }
 
     func isFullScreen(_ window: Window) -> Bool { attribute(window, "AXFullScreen") as? Bool == true }
+
+    func isMinimized(_ window: Window) -> Bool { attribute(window, kAXMinimizedAttribute) as? Bool == true }
 
     func number(of window: Window) -> CGWindowID? {
         var number: CGWindowID = 0
