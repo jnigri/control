@@ -1,8 +1,8 @@
 import AppKit
 
 // The menu bar item: the current desk key, then a small map of each monitor, in system colors.
-// Click it for a panel listing the desks, in the Asimov colors. Click a desk to show it, or a
-// layout from the history to put every window back where it was then.
+// Click it for a panel listing the desks, in the Asimov colors. Click a desk to show it. The clock
+// button turns the panel to the layouts to go back to: click one to put every window back.
 
 /// A color with one value for light mode and one for dark mode. macOS picks the right one
 /// each time it draws, so the panel follows the system theme on its own.
@@ -29,6 +29,8 @@ final class MenuBar: NSObject {
     let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
     /// Watches clicks in other apps, to close the panel.
     var clickOutside: Any?
+    /// The panel shows the layouts to go back to instead of the desks. It opens on the desks.
+    var showingHistory = false
 
     override init() {
         super.init()
@@ -49,6 +51,7 @@ final class MenuBar: NSObject {
     @objc func toggle() { panel.isVisible ? close() : open() }
 
     func open() {
+        showingHistory = false
         render()
         panel.orderFrontRegardless()
         clickOutside = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -62,41 +65,16 @@ final class MenuBar: NSObject {
         clickOutside = nil
     }
 
-    /// Build the panel: a title, one row per desk in use, the layouts to go back to, then Settings and Quit.
+    /// Build the panel: the desks or the layouts to go back to, then the buttons.
     func render() {
-        var rows: [NSView] = [Row([label("DESKS", size: 10, color: Asimov.muted, mono: true)])]
-        for key in deskKeys where key == current || onMonitor(desks[key]!) || !desks[key]!.windows.isEmpty {
-            let isCurrent = key == current || onMonitor(desks[key]!)
-            let cap = NSImageView(image: keyCap(key, size: 22, fill: isCurrent ? Asimov.accent : Asimov.raised,
-                                                ink: isCurrent ? .white : Asimov.text))
-            rows.append(Row([cap] + appIcons(on: desks[key]!)) { [unowned self] in
-                close()
-                show(key)
-            })
-        }
-        // The layouts to go back to, newest first, each with the time it was replaced.
-        rows.append(separator())
-        rows.append(Row([label("GO BACK TO", size: 10, color: Asimov.muted, mono: true)]))
-        if history.isEmpty {
-            rows.append(Row([label("the layout before your next change", size: 12, color: Asimov.muted)]))
-        }
-        for layout in history {
-            let time = label(clock(layout.at), size: 12, color: Asimov.text, mono: true)
-            time.toolTip = "on screen from \(clock(layout.since)) to \(clock(layout.at))"
-            let windows = layout.shape.windowCount, deskCount = layout.shape.desks.count
-            let what = layout.why.isEmpty
-                ? "\(windows) window\(windows == 1 ? "" : "s") on \(deskCount) desk\(deskCount == 1 ? "" : "s")"
-                : layout.why
-            rows.append(Row([time, label(what, size: 12, color: Asimov.muted)]) { [unowned self] in
-                close()
-                guard !paused else { return }
-                restore(layout)
-            })
-        }
+        var rows = showingHistory ? historyRows() : deskRows()
         rows.append(separator())
         let space = NSView()
         space.setContentHuggingPriority(.defaultLow, for: .horizontal)
         rows.append(Row([space,
+                         IconButton("clock.arrow.circlepath", help: "Go back to an earlier layout") { [unowned self] in
+                             flip(toHistory: !showingHistory)
+                         },
                          IconButton("gearshape", help: "Settings") { [unowned self] in
                              close()
                              settingsWindow.show()
@@ -121,6 +99,54 @@ final class MenuBar: NSObject {
         let screenRight = (item.button!.window!.screen ?? NSScreen.screens[0]).visibleFrame.maxX
         let x = min(button.minX, screenRight - panel.frame.width - 8)
         panel.setFrameTopLeftPoint(NSPoint(x: x, y: button.minY - 4))
+    }
+
+    /// Turn the panel to the desks or the layouts. Redrawn a moment later: not from inside the
+    /// click on a button that the redraw takes away.
+    func flip(toHistory: Bool) {
+        showingHistory = toHistory
+        DispatchQueue.main.async { [weak self] in self?.render() }
+    }
+
+    /// A title, then one row per desk in use. Click one to show it.
+    func deskRows() -> [NSView] {
+        var rows: [NSView] = [Row([label("DESKS", size: 10, color: Asimov.muted, mono: true)])]
+        for key in deskKeys where key == current || onMonitor(desks[key]!) || !desks[key]!.windows.isEmpty {
+            let isCurrent = key == current || onMonitor(desks[key]!)
+            let cap = NSImageView(image: keyCap(key, size: 22, fill: isCurrent ? Asimov.accent : Asimov.raised,
+                                                ink: isCurrent ? .white : Asimov.text))
+            rows.append(Row([cap] + appIcons(on: desks[key]!)) { [unowned self] in
+                close()
+                show(key)
+            })
+        }
+        return rows
+    }
+
+    /// A way back to the desks, then the layouts to go back to, newest first, each with the time it
+    /// was replaced. Click one to put every window back where it was.
+    func historyRows() -> [NSView] {
+        let back = IconButton("chevron.left", help: "Back to the desks", size: 11) { [unowned self] in
+            flip(toHistory: false)
+        }
+        var rows: [NSView] = [Row([back, label("GO BACK TO", size: 10, color: Asimov.muted, mono: true)])]
+        if history.isEmpty {
+            rows.append(Row([label("the layout before your next change", size: 12, color: Asimov.muted)]))
+        }
+        for layout in history {
+            let time = label(clock(layout.at), size: 12, color: Asimov.text, mono: true)
+            time.toolTip = "on screen from \(clock(layout.since)) to \(clock(layout.at))"
+            let windows = layout.shape.windowCount, deskCount = layout.shape.desks.count
+            let what = layout.why.isEmpty
+                ? "\(windows) window\(windows == 1 ? "" : "s") on \(deskCount) desk\(deskCount == 1 ? "" : "s")"
+                : layout.why
+            rows.append(Row([time, label(what, size: 12, color: Asimov.muted)]) { [unowned self] in
+                close()
+                guard !paused else { return }
+                restore(layout)
+            })
+        }
+        return rows
     }
 }
 
@@ -184,11 +210,11 @@ final class IconButton: NSView {
     let action: () -> Void
     var hovered = false { didSet { needsDisplay = true } }
 
-    init(_ symbol: String, help: String, action: @escaping () -> Void) {
+    init(_ symbol: String, help: String, size: CGFloat = 14, action: @escaping () -> Void) {
         self.action = action
         super.init(frame: .zero)
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: help)?
-            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)) ?? NSImage()
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .medium)) ?? NSImage()
         let icon = NSImageView(image: image)
         icon.contentTintColor = Asimov.text
         icon.translatesAutoresizingMaskIntoConstraints = false

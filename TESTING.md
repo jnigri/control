@@ -66,7 +66,8 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 
 ## Layouts
 
-- [ ] Right after a reboot, the panel's "Go back to" part says what it will hold.
+- [ ] The clock button at the bottom of the panel turns it to "Go back to". The arrow at the top turns it back to the desks. The panel opens on the desks each time.
+- [ ] Right after a reboot, "Go back to" says what it will hold.
 - [ ] Wait 5 seconds, send a window to another desk. The panel lists the layout before, with the time and how many windows and desks it had.
 - [ ] Send three windows away within a second or two. Only the layout before the first one is listed.
 - [ ] Switching desks lists nothing.
