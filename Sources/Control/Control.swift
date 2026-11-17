@@ -126,21 +126,23 @@ func refresh() {
     }
     // A missing window that stays, and why. The others leave their desk.
     var kept: [Window: String] = [:]
+    var leaving: [(Window, Desk)] = []
     for desk in allDesks {
         for window in desk.windows where !live.contains(window) {
             let why = catchingUp ? "catching up" : isCovered(desk) ? "covered monitor"
                 : silent.contains(pid(of: window)) ? "silent app"
                 : !covered.isEmpty && hidden[window] != nil ? "hidden beside full screen" : nil
-            if let why {
-                kept[window] = why
-                continue
-            }
-            let minimized = mac.isMinimized(window)
-            log("gone", tag(window, ["desk": desk.name, "minimized": minimized]))
-            if !minimized { rememberGone(window, from: desk) }
-            desk.remove(window)
-            closedAt = mac.now
+            if let why { kept[window] = why } else { leaving.append((window, desk)) }
         }
+    }
+    // Several windows at once is rarely the user closing them: keep the layout they leave behind.
+    if leaving.count > 1 { saveLayout("before \(leaving.count) windows went missing") }
+    for (window, desk) in leaving {
+        let minimized = mac.isMinimized(window)
+        log("gone", tag(window, ["desk": desk.name, "minimized": minimized]))
+        if !minimized { rememberGone(window, from: desk) }
+        desk.remove(window)
+        closedAt = mac.now
     }
     logChange("kept", \.kept, kept) { kept in ["windows": kept.map { tag($0.key, ["why": $0.value]) }] }
     hidden = hidden.filter { desk(of: $0.key) != nil }

@@ -62,6 +62,14 @@ The tests assume apps report moves and resizes of their windows while the mouse 
 - [ ] Lock the screen (Control + Command + Q), wait ten seconds, unlock. Nothing moved, on any desk.
 - [ ] Let the display sleep, wake it. Same.
 - [ ] Sleep the Mac, wake it. Same.
+- [ ] After any of these, the log has no `repark` line every time something happens: hidden windows stay in the corner where macOS put them.
+
+## Layouts
+
+- [ ] Lock the screen and unlock it. The menu bar panel lists a layout "before the screen locked".
+- [ ] Send a few windows to other desks, then pick that layout in the panel. Every window goes back to its desk and its place.
+- [ ] The panel now lists "before going back to …" first. Pick it: the windows go back to where you had sent them.
+- [ ] Close a window, open another, then go back to an older layout. The closed one is left out, the new one stays on its desk.
 
 ## A second monitor
 

@@ -1,7 +1,8 @@
 import AppKit
 
 // The menu bar item: the current desk key, then a small map of each monitor, in system colors.
-// Click it for a panel listing the desks, in the Asimov colors. Click a desk to show it.
+// Click it for a panel listing the desks, in the Asimov colors. Click a desk to show it, or a
+// layout from the history to put every window back where it was then.
 
 /// A color with one value for light mode and one for dark mode. macOS picks the right one
 /// each time it draws, so the panel follows the system theme on its own.
@@ -61,7 +62,7 @@ final class MenuBar: NSObject {
         clickOutside = nil
     }
 
-    /// Build the panel: a title, one row per desk in use, then Settings and Quit.
+    /// Build the panel: a title, one row per desk in use, the layouts to go back to, then Settings and Quit.
     func render() {
         var rows: [NSView] = [Row([label("DESKS", size: 10, color: Asimov.muted, mono: true)])]
         for key in deskKeys where key == current || onMonitor(desks[key]!) || !desks[key]!.windows.isEmpty {
@@ -73,12 +74,25 @@ final class MenuBar: NSObject {
                 show(key)
             })
         }
-        let line = NSBox()
-        line.boxType = .custom
-        line.borderWidth = 0
-        line.fillColor = Asimov.raised
-        line.heightAnchor.constraint(equalToConstant: 1).isActive = true
-        rows.append(line)
+        // The layouts to go back to, newest first.
+        if !history.isEmpty {
+            rows.append(separator())
+            rows.append(Row([label("LAYOUTS", size: 10, color: Asimov.muted, mono: true)]))
+            for layout in history {
+                let time = label(clock(layout.at), size: 12, color: Asimov.text, mono: true)
+                let why = label(layout.why, size: 12, color: Asimov.muted)
+                let count = label("\(layout.shape.windowCount)", size: 11, color: Asimov.muted, mono: true)
+                count.toolTip = "windows"
+                let space = NSView()
+                space.setContentHuggingPriority(.defaultLow, for: .horizontal)
+                rows.append(Row([time, why, space, count]) { [unowned self] in
+                    close()
+                    guard !paused else { return }
+                    restore(layout)
+                })
+            }
+        }
+        rows.append(separator())
         let space = NSView()
         space.setContentHuggingPriority(.defaultLow, for: .horizontal)
         rows.append(Row([space,
@@ -107,6 +121,16 @@ final class MenuBar: NSObject {
         let x = min(button.minX, screenRight - panel.frame.width - 8)
         panel.setFrameTopLeftPoint(NSPoint(x: x, y: button.minY - 4))
     }
+}
+
+/// A thin line between parts of the panel.
+func separator() -> NSView {
+    let line = NSBox()
+    line.boxType = .custom
+    line.borderWidth = 0
+    line.fillColor = Asimov.raised
+    line.heightAnchor.constraint(equalToConstant: 1).isActive = true
+    return line
 }
 
 /// The panel's background: a rounded card with a thin border.

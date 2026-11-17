@@ -201,6 +201,7 @@ func restart(on fake: FakeMac) {
     closedAt = .distantPast
     clickedAt = .distantPast
     logMemory = LogMemory()
+    history = []
     loadSavedDesks()
     refresh()
 }
